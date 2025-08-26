@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Прослушка звонков</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background:#f7f7f7; }
-    h2 { margin-top: 30px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
-    th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
-    th { background: #eaeaea; }
-    input, textarea, select { width: 100%; padding: 6px; margin: 4px 0; }
-    button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
-    .container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-
-    .grid { display: flex; gap: 20px; }
-    .form-section { flex: 1; }
-    .table-section { flex: 2; }
-
-    .spoiler { margin-top: 10px; }
-    .spoiler button { margin-bottom: 8px; }
-    .hidden { display: none; }
-  </style>
+<meta charset="UTF-8">
+<title>Прослушка звонков (Firebase)</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background:#f7f7f7; }
+h2 { margin-top: 30px; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; }
+th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+th { background: #eaeaea; }
+input, textarea { width: 100%; padding: 6px; margin: 4px 0; }
+button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
+.container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.grid { display: flex; gap: 20px; }
+.form-section { flex: 1; }
+.table-section { flex: 2; }
+.spoiler { margin-top: 10px; }
+.spoiler button { margin-bottom: 8px; }
+.hidden { display: none; }
+</style>
 </head>
 <body>
 
@@ -29,19 +27,14 @@
     <h1>Форма внесения данных</h1>
     <label>Название обучающего мероприятия:</label>
     <input type="text" id="eventName">
-
     <label>ЦА:</label>
     <input type="text" id="targetAudience">
-
     <label>Зоны роста:</label>
     <textarea id="growthZones"></textarea>
-
     <label>Комментарий:</label>
     <textarea id="comment"></textarea>
-
     <label>Участник:</label>
     <input type="text" id="participant">
-
     <button id="saveBtn">Сохранить</button>
   </div>
 
@@ -103,107 +96,94 @@
   </table>
 </div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-firestore-compat.js"></script>
+
 <script>
-let editIndex = null;
-
-function loadData() {
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
-  updateTables(records);
-  setTodayArchive();
-}
-
-function saveData() {
-  const eventName = document.getElementById("eventName").value.trim();
-  const targetAudience = document.getElementById("targetAudience").value.trim();
-  const growthZones = document.getElementById("growthZones").value.trim();
-  const comment = document.getElementById("comment").value.trim();
-  const participant = document.getElementById("participant").value.trim();
-
-  if (!eventName || !participant) {
-    alert("Заполните обязательные поля: Название и Участник!");
-    return;
-  }
-
-  const record = {
-    date: new Date().toISOString().split("T")[0],
-    time: new Date().toLocaleTimeString(),
-    eventName, targetAudience, growthZones, comment, participant
+  // 🔹 Вставьте свои настройки Firebase
+  const firebaseConfig = {
+    apiKey: "ВАШ_API_KEY",
+    authDomain: "ВАШ_PROJECT_ID.firebaseapp.com",
+    projectId: "ВАШ_PROJECT_ID",
+    storageBucket: "ВАШ_PROJECT_ID.appspot.com",
+    messagingSenderId: "ВАШ_SENDER_ID",
+    appId: "ВАШ_APP_ID"
   };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  let editId = null;
 
-  if (editIndex !== null) {
-    records[editIndex] = record;
-    editIndex = null;
-  } else {
-    records.push(record);
+  function clearForm() {
+    document.getElementById("eventName").value = "";
+    document.getElementById("targetAudience").value = "";
+    document.getElementById("growthZones").value = "";
+    document.getElementById("comment").value = "";
+    document.getElementById("participant").value = "";
+    editId = null;
   }
 
-  localStorage.setItem("records", JSON.stringify(records));
-  updateTables(records);
-  clearForm();
-}
+  function saveData() {
+    const eventName = document.getElementById("eventName").value.trim();
+    const targetAudience = document.getElementById("targetAudience").value.trim();
+    const growthZones = document.getElementById("growthZones").value.trim();
+    const comment = document.getElementById("comment").value.trim();
+    const participant = document.getElementById("participant").value.trim();
 
-function clearForm() {
-  document.getElementById("eventName").value = "";
-  document.getElementById("targetAudience").value = "";
-  document.getElementById("growthZones").value = "";
-  document.getElementById("comment").value = "";
-  document.getElementById("participant").value = "";
-}
+    if (!eventName || !participant) { alert("Заполните обязательные поля!"); return; }
 
-function updateTables(records) {
-  const mainTableBody = document.querySelector("#mainTable tbody");
-  const spoilerTableBody = document.querySelector("#spoilerTable tbody");
-  mainTableBody.innerHTML = "";
-  spoilerTableBody.innerHTML = "";
+    const record = {
+      date: new Date().toISOString().split("T")[0],
+      time: new Date().toLocaleTimeString(),
+      eventName, targetAudience, growthZones, comment, participant
+    };
 
-  if (records.length > 0) {
-    const lastIndex = records.length - 1;
-    mainTableBody.innerHTML = rowHTML(records[lastIndex], lastIndex);
-
-    for (let i = records.length - 2; i >= 0; i--) {
-      spoilerTableBody.innerHTML += rowHTML(records[i], i);
+    if(editId){
+      db.collection("records").doc(editId).set(record).then(clearForm);
+    } else {
+      db.collection("records").add(record).then(clearForm);
     }
   }
-}
 
-function rowHTML(r, i) {
-  return `<tr>
-    <td>${r.eventName}</td>
-    <td>${r.targetAudience}</td>
-    <td>${r.growthZones}</td>
-    <td>${r.comment}</td>
-    <td>${r.participant}</td>
-    <td>
-      <button class="edit-btn" data-index="${i}">Редактировать</button>
-      <button class="delete-btn" data-index="${i}">Удалить</button>
-    </td>
-  </tr>`;
-}
+  function rowHTML(r){
+    return `<tr>
+      <td>${r.eventName}</td>
+      <td>${r.targetAudience}</td>
+      <td>${r.growthZones}</td>
+      <td>${r.comment}</td>
+      <td>${r.participant}</td>
+      <td>
+        <button class="edit-btn" data-id="${r.id}">Редактировать</button>
+        <button class="delete-btn" data-id="${r.id}">Удалить</button>
+      </td>
+    </tr>`;
+  }
 
-function toggleSpoiler() {
-  const table = document.getElementById("spoilerTable");
-  const btn = document.getElementById("toggleSpoilerBtn");
-  table.classList.toggle("hidden");
-  btn.textContent = table.classList.contains("hidden") ? "Показать все записи" : "Скрыть записи";
-}
+  function renderTables(records){
+    const mainTableBody = document.querySelector("#mainTable tbody");
+    const spoilerTableBody = document.querySelector("#spoilerTable tbody");
+    mainTableBody.innerHTML = "";
+    spoilerTableBody.innerHTML = "";
 
-function setTodayArchive() {
-  const input = document.getElementById("archiveDate");
-  input.value = new Date().toISOString().split("T")[0];
-  filterArchive();
-}
+    if(records.length){
+      const last = records[records.length-1];
+      mainTableBody.innerHTML = rowHTML(last);
 
-function filterArchive() {
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
-  const chosenDate = document.getElementById("archiveDate").value;
-  const archiveTableBody = document.querySelector("#archiveTable tbody");
-  archiveTableBody.innerHTML = "";
+      for(let i=records.length-2;i>=0;i--){
+        spoilerTableBody.innerHTML += rowHTML(records[i]);
+      }
+    }
 
-  records.forEach(r => {
-    if (r.date === chosenDate) {
-      archiveTableBody.innerHTML += `<tr>
+    const archiveDate = document.getElementById("archiveDate").value;
+    renderArchive(records, archiveDate);
+  }
+
+  function renderArchive(records, date){
+    const tbody = document.querySelector("#archiveTable tbody");
+    tbody.innerHTML = "";
+    records.filter(r=>r.date===date).forEach(r=>{
+      tbody.innerHTML += `<tr>
         <td>${r.date} ${r.time}</td>
         <td>${r.eventName}</td>
         <td>${r.targetAudience}</td>
@@ -211,74 +191,94 @@ function filterArchive() {
         <td>${r.comment}</td>
         <td>${r.participant}</td>
       </tr>`;
-    }
-  });
-}
-
-function changeDate(days) {
-  const input = document.getElementById("archiveDate");
-  const d = new Date(input.value);
-  d.setDate(d.getDate() + days);
-  input.value = d.toISOString().split("T")[0];
-  filterArchive();
-}
-
-function downloadCSV() {
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
-  if (records.length === 0) {
-    alert("Архив пуст!");
-    return;
+    });
   }
 
-  let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
-  records.forEach(r => {
-    csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+  // 🔹 Подписка на изменения Firestore (реальное обновление)
+  db.collection("records").orderBy("date").onSnapshot(snapshot=>{
+    const records = [];
+    snapshot.forEach(doc=>{
+      records.push({...doc.data(), id: doc.id});
+    });
+    renderTables(records);
   });
 
-  const BOM = "\uFEFF";
-  const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "archive.csv";
-  link.click();
-}
+  // Делегирование кнопок редактирования и удаления
+  document.addEventListener("click",(e)=>{
+    if(e.target.matches(".edit-btn")){
+      const id = e.target.dataset.id;
+      db.collection("records").doc(id).get().then(doc=>{
+        const r = doc.data();
+        document.getElementById("eventName").value = r.eventName;
+        document.getElementById("targetAudience").value = r.targetAudience;
+        document.getElementById("growthZones").value = r.growthZones;
+        document.getElementById("comment").value = r.comment;
+        document.getElementById("participant").value = r.participant;
+        editId = id;
+      });
+    }
+    if(e.target.matches(".delete-btn")){
+      const id = e.target.dataset.id;
+      db.collection("records").doc(id).delete();
+    }
+  });
 
-// Делегирование событий для динамических кнопок
-document.addEventListener("click", (e) => {
-  if (e.target.matches(".edit-btn")) editRecord(e.target.dataset.index);
-  if (e.target.matches(".delete-btn")) deleteRecord(e.target.dataset.index);
-});
+  // Кнопки управления
+  document.getElementById("saveBtn").addEventListener("click", saveData);
+  document.getElementById("toggleSpoilerBtn").addEventListener("click",()=>{
+    document.getElementById("spoilerTable").classList.toggle("hidden");
+  });
 
-function editRecord(index) {
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
-  const r = records[index];
-  document.getElementById("eventName").value = r.eventName;
-  document.getElementById("targetAudience").value = r.targetAudience;
-  document.getElementById("growthZones").value = r.growthZones;
-  document.getElementById("comment").value = r.comment;
-  document.getElementById("participant").value = r.participant;
-  editIndex = index;
-}
+  // Архив
+  const archiveInput = document.getElementById("archiveDate");
+  archiveInput.value = new Date().toISOString().split("T")[0];
+  archiveInput.addEventListener("change", () => fetchArchive());
 
-function deleteRecord(index) {
-  const records = JSON.parse(localStorage.getItem("records") || "[]");
-  records.splice(index, 1);
-  localStorage.setItem("records", JSON.stringify(records));
-  updateTables(records);
-}
+  document.getElementById("prevDateBtn").addEventListener("click", ()=>{
+    const d = new Date(archiveInput.value);
+    d.setDate(d.getDate()-1);
+    archiveInput.value = d.toISOString().split("T")[0];
+    fetchArchive();
+  });
+  document.getElementById("nextDateBtn").addEventListener("click", ()=>{
+    const d = new Date(archiveInput.value);
+    d.setDate(d.getDate()+1);
+    archiveInput.value = d.toISOString().split("T")[0];
+    fetchArchive();
+  });
 
-// Обработчики кнопок
-document.getElementById("saveBtn").addEventListener("click", saveData);
-document.getElementById("toggleSpoilerBtn").addEventListener("click", toggleSpoiler);
-document.getElementById("prevDateBtn").addEventListener("click", () => changeDate(-1));
-document.getElementById("nextDateBtn").addEventListener("click", () => changeDate(1));
-document.getElementById("downloadCSVBtn").addEventListener("click", downloadCSV);
+  function fetchArchive(){
+    db.collection("records").orderBy("date").get().then(snapshot=>{
+      const records = [];
+      snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
+      renderArchive(records, archiveInput.value);
+    });
+  }
 
-loadData();
+  // CSV
+  function downloadCSV(){
+    db.collection("records").orderBy("date").get().then(snapshot=>{
+      if(snapshot.empty){ alert("Архив пуст!"); return; }
+
+      let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
+      snapshot.forEach(doc=>{
+        const r = doc.data();
+        csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+      });
+
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "archive.csv";
+      link.click();
+    });
+  }
+  document.getElementById("downloadCSVBtn").addEventListener("click", downloadCSV);
 </script>
-
 </body>
 </html>
+
 
 
 
