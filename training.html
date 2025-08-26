@@ -3,33 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <title>Форма обучения + Google Sheets</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body { font-family: Arial, sans-serif; margin:20px; background:#f7f7f7; }
-h1,h2 { margin:0 0 12px 0; }
 .grid { display:flex; gap:16px; align-items:flex-start; }
 .container { background:#fff; padding:16px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
 .form-section { flex:1; min-width:260px; }
 .table-section { flex:2; min-width:420px; }
-label { display:block; margin-top:10px; font-size:13px; }
-input[type="text"], textarea, select, input[type="date"] { width:100%; padding:8px; margin-top:6px; border:1px solid #d0d0d0; border-radius:4px; box-sizing:border-box; }
-textarea { min-height:60px; resize:vertical; }
-button { padding:8px 12px; margin-top:10px; cursor:pointer; border-radius:6px; border:1px solid #bbb; background:#f6f6f6; }
-button.primary { background:#2b8aef; color:white; border-color:#2577d4; }
-button.danger { background:#ffdddd; border-color:#ff8a8a; }
-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
-th, td { border:1px solid #e0e0e0; padding:8px; vertical-align:top; text-align:left; background:#fff; }
-th { background:#f0f0f0; font-weight:600; }
+input, textarea, select, button { width:100%; padding:6px; margin-top:6px; box-sizing:border-box; }
+button.primary { background:#2b8aef; color:white; border:none; border-radius:4px; cursor:pointer; }
+button.danger { background:#ff5555; color:white; border:none; border-radius:4px; cursor:pointer; }
+table { width:100%; border-collapse:collapse; margin-top:12px; }
+th, td { border:1px solid #ccc; padding:6px; text-align:left; }
 .hidden { display:none; }
-.controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
-.muted { color:#666; font-size:13px; }
-.small { padding:6px 8px; font-size:13px; }
 </style>
 </head>
 <body>
 
 <div class="grid">
-  <!-- Основная таблица слева -->
   <div class="container table-section">
     <h2>Основная таблица</h2>
     <table id="mainTable">
@@ -45,8 +35,8 @@ th { background:#f0f0f0; font-weight:600; }
       </thead>
       <tbody></tbody>
     </table>
-    <div class="hidden" id="spoilerWrapper">
-      <button id="toggleSpoilerBtn" class="small" onclick="toggleSpoiler()">Показать все записи</button>
+    <div id="spoilerWrapper" class="hidden">
+      <button onclick="toggleSpoiler()" id="toggleSpoilerBtn">Показать все записи</button>
       <table id="spoilerTable" class="hidden">
         <thead>
           <tr>
@@ -63,28 +53,22 @@ th { background:#f0f0f0; font-weight:600; }
     </div>
   </div>
 
-  <!-- Форма справа -->
   <div class="container form-section">
-    <h1>Форма внесения данных</h1>
+    <h2>Форма внесения данных</h2>
     <label>Название:</label><input type="text" id="eventName">
     <label>ЦА:</label><input type="text" id="targetAudience">
     <label>Зоны роста:</label><textarea id="growthZones"></textarea>
     <label>Комментарий:</label><textarea id="comment"></textarea>
     <label>Участник:</label><input type="text" id="participant">
-    <div class="controls">
-      <button id="saveBtn" class="primary" onclick="onSaveClick()">Сохранить</button>
-      <button id="updateBtn" class="primary hidden" onclick="onUpdateClick()">Обновить</button>
-      <button id="cancelBtn" class="small hidden" onclick="onCancelEdit()">Отмена</button>
-    </div>
+    <button class="primary" onclick="onSaveClick()" id="saveBtn">Сохранить</button>
+    <button class="primary hidden" onclick="onUpdateClick()" id="updateBtn">Обновить</button>
+    <button onclick="onCancelEdit()" class="hidden" id="cancelBtn">Отмена</button>
     <button onclick="exportToGoogle()" style="margin-top:10px;">Выгрузить в Google Sheets</button>
-    <div class="muted">Данные хранятся в localStorage.</div>
   </div>
 </div>
 
-<!-- Архив -->
 <div class="container" style="margin-top:16px;">
   <h2>Архив</h2>
-  <label>Выберите дату:</label>
   <input type="date" id="archiveDate" onchange="renderArchive()">
   <table id="archiveTable">
     <thead>
@@ -103,184 +87,41 @@ th { background:#f0f0f0; font-weight:600; }
 
 <script>
 let editIndex = null;
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxBmGuJxd883lhAbMQSFnMUxKMxKQYxCqESQtI3sIYN0TepY1vYJHVZeXNPNlnClq_5/exec"; // вставьте сюда URL
 
-function getRecords() {
-  return JSON.parse(localStorage.getItem('records')||'[]');
-}
-function setRecords(arr) {
-  localStorage.setItem('records', JSON.stringify(arr));
-}
+function getRecords(){ return JSON.parse(localStorage.getItem('records')||'[]'); }
+function setRecords(arr){ localStorage.setItem('records', JSON.stringify(arr)); }
+function clearForm(){ document.getElementById('eventName').value=''; document.getElementById('targetAudience').value=''; document.getElementById('growthZones').value=''; document.getElementById('comment').value=''; document.getElementById('participant').value=''; editIndex=null; showSaveMode(); }
+function showSaveMode(){ document.getElementById('saveBtn').classList.remove('hidden'); document.getElementById('updateBtn').classList.add('hidden'); document.getElementById('cancelBtn').classList.add('hidden'); }
+function showEditMode(){ document.getElementById('saveBtn').classList.add('hidden'); document.getElementById('updateBtn').classList.remove('hidden'); document.getElementById('cancelBtn').classList.remove('hidden'); }
+function onCancelEdit(){ clearForm(); }
 
-function clearForm(){
-  document.getElementById('eventName').value='';
-  document.getElementById('targetAudience').value='';
-  document.getElementById('growthZones').value='';
-  document.getElementById('comment').value='';
-  document.getElementById('participant').value='';
-  editIndex=null;
-  showSaveMode();
-}
-
-function showSaveMode(){
-  document.getElementById('saveBtn').classList.remove('hidden');
-  document.getElementById('updateBtn').classList.add('hidden');
-  document.getElementById('cancelBtn').classList.add('hidden');
-}
-
-function showEditMode(){
-  document.getElementById('saveBtn').classList.add('hidden');
-  document.getElementById('updateBtn').classList.remove('hidden');
-  document.getElementById('cancelBtn').classList.remove('hidden');
-}
-
-// ======= CRUD =======
 function onSaveClick(){
   const eventName=document.getElementById('eventName').value.trim();
   const participant=document.getElementById('participant').value.trim();
   if(!eventName||!participant){ alert('Заполните Название и Участника!'); return; }
-  const record={
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toLocaleTimeString(),
-    eventName,
-    targetAudience: document.getElementById('targetAudience').value.trim(),
-    growthZones: document.getElementById('growthZones').value.trim(),
-    comment: document.getElementById('comment').value.trim(),
-    participant
-  };
-  const records=getRecords();
-  records.push(record);
-  setRecords(records);
-  clearForm();
-  refreshTables();
+  const record={date:new Date().toISOString().split('T')[0], time:new Date().toLocaleTimeString(), eventName, targetAudience:document.getElementById('targetAudience').value.trim(), growthZones:document.getElementById('growthZones').value.trim(), comment:document.getElementById('comment').value.trim(), participant};
+  const records=getRecords(); records.push(record); setRecords(records); clearForm(); refreshTables();
 }
 
-function onEditRecord(idx){
-  const records=getRecords();
-  const r=records[idx];
-  if(!r) return;
-  document.getElementById('eventName').value=r.eventName;
-  document.getElementById('targetAudience').value=r.targetAudience||'';
-  document.getElementById('growthZones').value=r.growthZones||'';
-  document.getElementById('comment').value=r.comment||'';
-  document.getElementById('participant').value=r.participant||'';
-  editIndex=idx;
-  showEditMode();
-}
+function onEditRecord(idx){ const r=getRecords()[idx]; if(!r) return; document.getElementById('eventName').value=r.eventName; document.getElementById('targetAudience').value=r.targetAudience||''; document.getElementById('growthZones').value=r.growthZones||''; document.getElementById('comment').value=r.comment||''; document.getElementById('participant').value=r.participant||''; editIndex=idx; showEditMode(); }
+function onUpdateClick(){ if(editIndex===null) return; const records=getRecords(); records[editIndex].eventName=document.getElementById('eventName').value.trim(); records[editIndex].targetAudience=document.getElementById('targetAudience').value.trim(); records[editIndex].growthZones=document.getElementById('growthZones').value.trim(); records[editIndex].comment=document.getElementById('comment').value.trim(); records[editIndex].participant=document.getElementById('participant').value.trim(); setRecords(records); clearForm(); refreshTables(); }
+function onDeleteRecord(idx){ if(!confirm('Удалить запись?')) return; const records=getRecords(); records.splice(idx,1); setRecords(records); clearForm(); refreshTables(); }
 
-function onUpdateClick(){
-  if(editIndex===null) return;
-  const records=getRecords();
-  records[editIndex].eventName=document.getElementById('eventName').value.trim();
-  records[editIndex].targetAudience=document.getElementById('targetAudience').value.trim();
-  records[editIndex].growthZones=document.getElementById('growthZones').value.trim();
-  records[editIndex].comment=document.getElementById('comment').value.trim();
-  records[editIndex].participant=document.getElementById('participant').value.trim();
-  setRecords(records);
-  clearForm();
-  refreshTables();
-}
-
-function onCancelEdit(){ clearForm(); }
-
-function onDeleteRecord(idx){
-  if(!confirm('Удалить запись?')) return;
-  const records=getRecords();
-  records.splice(idx,1);
-  setRecords(records);
-  clearForm();
-  refreshTables();
-}
-
-// ======= Таблицы =======
 function refreshTables(){
   const records=getRecords();
   const mainBody=document.querySelector('#mainTable tbody');
   const spoilerBody=document.querySelector('#spoilerTable tbody');
-  mainBody.innerHTML='';
-  spoilerBody.innerHTML='';
-  if(records.length===0){
-    mainBody.innerHTML='<tr><td colspan="6">Нет записей</td></tr>';
-    document.getElementById('spoilerWrapper').classList.add('hidden');
-    return;
-  }
-  const lastIdx=records.length-1;
-  mainBody.innerHTML=rowHTML(records[lastIdx],lastIdx);
-  if(records.length>1){
-    document.getElementById('spoilerWrapper').classList.remove('hidden');
-    for(let i=lastIdx-1;i>=0;i--) spoilerBody.innerHTML+=rowHTML(records[i],i);
-  }else document.getElementById('spoilerWrapper').classList.add('hidden');
+  mainBody.innerHTML=''; spoilerBody.innerHTML='';
+  if(records.length===0){ mainBody.innerHTML='<tr><td colspan="6">Нет записей</td></tr>'; document.getElementById('spoilerWrapper').classList.add('hidden'); return; }
+  const lastIdx=records.length-1; mainBody.innerHTML=rowHTML(records[lastIdx],lastIdx);
+  if(records.length>1){ document.getElementById('spoilerWrapper').classList.remove('hidden'); for(let i=lastIdx-1;i>=0;i--) spoilerBody.innerHTML+=rowHTML(records[i],i); }else document.getElementById('spoilerWrapper').classList.add('hidden');
   renderArchive();
 }
 
-function rowHTML(r,idx){
-  return `<tr>
-    <td>${r.eventName}</td>
-    <td>${r.targetAudience||''}</td>
-    <td>${r.growthZones||''}</td>
-    <td>${r.comment||''}</td>
-    <td>${r.participant||''}</td>
-    <td>
-      <button class="small" onclick="onEditRecord(${idx})">Редактировать</button>
-      <button class="small danger" onclick="onDeleteRecord(${idx})">Удалить</button>
-    </td>
-  </tr>`;
-}
+function rowHTML(r,idx){ return `<tr><td>${r.eventName}</td><td>${r.targetAudience||''}</td><td>${r.growthZones||''}</td><td>${r.comment||''}</td><td>${r.participant||''}</td><td><button class="danger" onclick="onEditRecord(${idx})">Редактировать</button> <button class="danger" onclick="onDeleteRecord(${idx})">Удалить</button></td></tr>`; }
 
-function toggleSpoiler(){
-  const table=document.getElementById('spoilerTable');
-  const btn=document.getElementById('toggleSpoilerBtn');
-  if(table.classList.contains('hidden')){
-    table.classList.remove('hidden');
-    btn.textContent='Скрыть записи';
-  }else{
-    table.classList.add('hidden');
-    btn.textContent='Показать все записи';
-  }
-}
-
-// ======= Архив =======
-function renderArchive(){
-  const records=getRecords();
-  const dateInput=document.getElementById('archiveDate');
-  if(records.length>0&&!dateInput.value) dateInput.value=records[records.length-1].date;
-  const chosen=dateInput.value;
-  const body=document.querySelector('#archiveTable tbody');
-  body.innerHTML='';
-  const filtered=records.filter(r=>r.date===chosen);
-  if(filtered.length===0){ body.innerHTML='<tr><td colspan="6">Нет записей</td></tr>'; return; }
-  filtered.forEach(r=>{
-    body.innerHTML+=`<tr>
-      <td>${r.date} ${r.time}</td>
-      <td>${r.eventName}</td>
-      <td>${r.targetAudience||''}</td>
-      <td>${r.growthZones||''}</td>
-      <td>${r.comment||''}</td>
-      <td>${r.participant||''}</td>
-    </tr>`;
-  });
-}
-
-// ======= Google Sheets =======
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwFOhuQO7hcdwdRCPBtVIomXbV0Ktl-nrr-mDdjiSkHslyhIauqLvkGwE3qVuM27Wa_/exec";
-function exportToGoogle(){
-  const records=getRecords();
-  if(records.length===0){ alert('Нет данных для выгрузки'); return; }
-  fetch(APPS_SCRIPT_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(records)
-  })
-  .then(res=>res.json())
-  .then(r=>{ alert('Данные выгружены'); })
-  .catch(e=>{ alert('Ошибка при выгрузке: '+e); });
-}
-
-// ======= старт =======
-refreshTables();
-</script>
-
-</body>
-</html>
+function toggleSpoiler(){ const table=document.getElementById('spoilerTable'); const btn=document.getElementById('toggle
 
 
 
