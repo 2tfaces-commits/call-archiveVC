@@ -102,7 +102,7 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  // Firebase config
+  // --- Firebase Initialization ---
   const firebaseConfig = {
     apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
     authDomain: "analysis-2b010.firebaseapp.com",
@@ -113,25 +113,19 @@ document.addEventListener("DOMContentLoaded", () => {
     measurementId: "G-E4HZVPHWZC"
   };
 
-  // Инициализация Firebase
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
   let editId = null;
 
-  // Очистка формы
+  // --- Функции ---
   function clearForm(){
-    document.getElementById("eventName").value = "";
-    document.getElementById("targetAudience").value = "";
-    document.getElementById("growthZones").value = "";
-    document.getElementById("comment").value = "";
-    document.getElementById("participant").value = "";
+    ["eventName","targetAudience","growthZones","comment","participant"].forEach(id=>{
+      document.getElementById(id).value = "";
+    });
     editId = null;
   }
 
-  // Сохранение данных
   function saveData(){
     const eventName = document.getElementById("eventName").value.trim();
     const targetAudience = document.getElementById("targetAudience").value.trim();
@@ -147,14 +141,10 @@ document.addEventListener("DOMContentLoaded", () => {
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     };
 
-    if(editId){
-      db.collection("records").doc(editId).set(record).then(clearForm).catch(console.error);
-    } else {
-      db.collection("records").add(record).then(clearForm).catch(console.error);
-    }
+    const action = editId ? db.collection("records").doc(editId).set(record) : db.collection("records").add(record);
+    action.then(clearForm).catch(console.error);
   }
 
-  // Отрисовка строк
   function rowHTML(r){
     return `<tr>
       <td>${r.eventName}</td>
@@ -169,57 +159,86 @@ document.addEventListener("DOMContentLoaded", () => {
     </tr>`;
   }
 
-  // Отрисовка таблиц
   function renderTables(records){
     const mainBody = document.querySelector("#mainTable tbody");
     const spoilerBody = document.querySelector("#spoilerTable tbody");
-    mainBody.innerHTML = "";
-    spoilerBody.innerHTML = "";
-
-    if(records.length){
-      mainBody.innerHTML = rowHTML(records[records.length-1]);
-      for(let i=records.length-2;i>=0;i--){
-        spoilerBody.innerHTML += rowHTML(records[i]);
-      }
-    }
+    mainBody.innerHTML = records.length ? rowHTML(records[records.length-1]) : "";
+    spoilerBody.innerHTML = records.slice(0,-1).reverse().map(rowHTML).join("");
     renderArchive(records, document.getElementById("archiveDate").value);
   }
 
-  // Отрисовка архива
   function renderArchive(records, date){
     const tbody = document.querySelector("#archiveTable tbody");
-    tbody.innerHTML = "";
-    records.filter(r=>r.date===date).forEach(r=>{
-      tbody.innerHTML += `<tr>
+    tbody.innerHTML = records.filter(r=>r.date===date).map(r=>
+      `<tr>
         <td>${r.date} ${r.time}</td>
         <td>${r.eventName}</td>
         <td>${r.targetAudience}</td>
         <td>${r.growthZones}</td>
         <td>${r.comment}</td>
         <td>${r.participant}</td>
-      </tr>`;
+      </tr>`).join("");
+  }
+
+  function fetchArchive(){
+    db.collection("records").orderBy("timestamp").get().then(snapshot=>{
+      const records = [];
+      snapshot.forEach(doc => records.push({...doc.data(), id: doc.id}));
+      renderArchive(records, archiveInput.value);
     });
   }
 
-  // Подписка на Firestore
+  // --- События ---
+  document.getElementById("saveBtn").addEventListener("click", saveData);
+  document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=> {
+    document.getElementById("spoilerTable").classList.toggle("hidden");
+  });
+
+  const archiveInput = document.getElementById("archiveDate");
+  archiveInput.value = new Date().toISOString().split("T")[0];
+  archiveInput.addEventListener("change", fetchArchive);
+  document.getElementById("prevDateBtn").addEventListener("click", ()=>{
+    const d=new Date(archiveInput.value); d.setDate(d.getDate()-1);
+    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
+  });
+  document.getElementById("nextDateBtn").addEventListener("click", ()=>{
+    const d=new Date(archiveInput.value); d.setDate(d.getDate()+1);
+    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
+  });
+
+  document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
+    db.collection("records").orderBy("timestamp").get().then(snapshot=>{
+      if(snapshot.empty){alert("Архив пуст!");return;}
+      let csv="Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
+      snapshot.forEach(doc=>{
+        const r=doc.data();
+        csv+=`"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+      });
+      const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+      const link=document.createElement("a");
+      link.href=URL.createObjectURL(blob);
+      link.download="archive.csv";
+      link.click();
+    });
+  });
+
+  // --- Подписка на Firestore ---
   db.collection("records").orderBy("timestamp").onSnapshot(snapshot=>{
     const records = [];
     snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
     renderTables(records);
   });
 
-  // Редактирование и удаление
+  // --- Редактирование/удаление ---
   document.addEventListener("click", e=>{
     if(e.target.matches(".edit-btn")){
       const id = e.target.dataset.id;
       db.collection("records").doc(id).get().then(doc=>{
         const r = doc.data();
-        document.getElementById("eventName").value=r.eventName;
-        document.getElementById("targetAudience").value=r.targetAudience;
-        document.getElementById("growthZones").value=r.growthZones;
-        document.getElementById("comment").value=r.comment;
-        document.getElementById("participant").value=r.participant;
-        editId=id;
+        ["eventName","targetAudience","growthZones","comment","participant"].forEach(id=>{
+          document.getElementById(id).value = r[id];
+        });
+        editId = id;
       });
     }
     if(e.target.matches(".delete-btn")){
@@ -228,54 +247,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Кнопки
-  document.getElementById("saveBtn").addEventListener("click", saveData);
-  document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=>{
-    document.getElementById("spoilerTable").classList.toggle("hidden");
-  });
-
-  // Архив
-  const archiveInput = document.getElementById("archiveDate");
-  archiveInput.value = new Date().toISOString().split("T")[0];
-  function fetchArchive(){
-    db.collection("records").orderBy("timestamp").get().then(snapshot=>{
-      const records=[];
-      snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
-      renderArchive(records, archiveInput.value);
-    });
-  }
-  archiveInput.addEventListener("change", fetchArchive);
-  document.getElementById("prevDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value); d.setDate(d.getDate()-1);
-    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
-  });
-  document.getElementById("nextDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value); d.setDate(d.getDate()+1);
-    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
-  });
-
-  // CSV
-  document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
-    db.collection("records").orderBy("timestamp").get().then(snapshot=>{
-      if(snapshot.empty){alert("Архив пуст!");return;}
-      let csv="Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
-      snapshot.forEach(doc=>{
-        const r = doc.data();
-        csv+=`"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
-      });
-      const BOM="\uFEFF";
-      const blob=new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
-      const link=document.createElement("a");
-      link.href=URL.createObjectURL(blob);
-      link.download="archive.csv";
-      link.click();
-    });
-  });
 });
 </script>
 
 </body>
 </html>
+
 
 
 
