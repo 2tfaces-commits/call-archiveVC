@@ -235,7 +235,7 @@ document.getElementById('downloadCSVBtn').addEventListener('click',()=>{
 document.getElementById('uploadSheetsBtn').addEventListener('click',()=>{
   const records=getRecords(); const last=getLastUploadedIndex(); const newRecords=records.slice(last+1);
   if(!newRecords.length){ alert('Нет новых записей для выгрузки'); return; }
-  const APPS_SCRIPT_URL='ВАШ_URL_APPS_SCRIPT'; // Вставьте ваш URL Web App
+  const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwFOhuQO7hcdwdRCPBtVIomXbV0Ktl-nrr-mDdjiSkHslyhIauqLvkGwE3qVuM27Wa_/exec'; // Вставьте ваш URL Web App
   fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newRecords)})
   .then(res=>res.json())
   .then(()=>{ alert(`${newRecords.length} запись(ей) успешно выгружено в Google Sheets!`); setLastUploadedIndex(records.length-1); })
@@ -250,6 +250,7 @@ window.addEventListener('load',()=>{refreshAll();showSaveMode();initArchiveDate(
 
 </body>
 </html>
+
 
 
 
