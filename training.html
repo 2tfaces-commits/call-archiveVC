@@ -101,165 +101,170 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 <script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-firestore-compat.js"></script>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
-    authDomain: "analysis-2b010.firebaseapp.com",
-    projectId: "analysis-2b010",
-    storageBucket: "analysis-2b010.appspot.com",
-    messagingSenderId: "700504174166",
-    appId: "1:700504174166:web:4bc79f44bbc6a2a0b015f7",
-    measurementId: "G-E4HZVPHWZC"
+const firebaseConfig = {
+  apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
+  authDomain: "analysis-2b010.firebaseapp.com",
+  projectId: "analysis-2b010",
+  storageBucket: "analysis-2b010.appspot.com",
+  messagingSenderId: "700504174166",
+  appId: "1:700504174166:web:4bc79f44bbc6a2a0b015f7",
+  measurementId: "G-E4HZVPHWZC"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let editId = null;
+
+function clearForm(){
+  document.getElementById("eventName").value = "";
+  document.getElementById("targetAudience").value = "";
+  document.getElementById("growthZones").value = "";
+  document.getElementById("comment").value = "";
+  document.getElementById("participant").value = "";
+  editId = null;
+}
+
+function saveData(){
+  const eventName = document.getElementById("eventName").value.trim();
+  const targetAudience = document.getElementById("targetAudience").value.trim();
+  const growthZones = document.getElementById("growthZones").value.trim();
+  const comment = document.getElementById("comment").value.trim();
+  const participant = document.getElementById("participant").value.trim();
+  if(!eventName || !participant){ alert("Заполните обязательные поля!"); return; }
+
+  const record = {
+    date: new Date().toISOString().split("T")[0],
+    time: new Date().toLocaleTimeString(),
+    eventName, targetAudience, growthZones, comment, participant
   };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
 
-  let editId = null;
-
-  function clearForm() {
-    document.getElementById("eventName").value = "";
-    document.getElementById("targetAudience").value = "";
-    document.getElementById("growthZones").value = "";
-    document.getElementById("comment").value = "";
-    document.getElementById("participant").value = "";
-    editId = null;
+  if(editId){
+    db.collection("records").doc(editId).set(record).then(clearForm).catch(console.error);
+  } else {
+    db.collection("records").add(record).then(clearForm).catch(console.error);
   }
+}
 
-  function saveData() {
-    const eventName = document.getElementById("eventName").value.trim();
-    const targetAudience = document.getElementById("targetAudience").value.trim();
-    const growthZones = document.getElementById("growthZones").value.trim();
-    const comment = document.getElementById("comment").value.trim();
-    const participant = document.getElementById("participant").value.trim();
-    if (!eventName || !participant) { alert("Заполните обязательные поля!"); return; }
+function rowHTML(r){
+  return `<tr>
+    <td>${r.eventName}</td>
+    <td>${r.targetAudience}</td>
+    <td>${r.growthZones}</td>
+    <td>${r.comment}</td>
+    <td>${r.participant}</td>
+    <td>
+      <button class="edit-btn" data-id="${r.id}">Редактировать</button>
+      <button class="delete-btn" data-id="${r.id}">Удалить</button>
+    </td>
+  </tr>`;
+}
 
-    const record = {
-      date: new Date().toISOString().split("T")[0],
-      time: new Date().toLocaleTimeString(),
-      eventName, targetAudience, growthZones, comment, participant
-    };
+function renderTables(records){
+  const mainTableBody = document.querySelector("#mainTable tbody");
+  const spoilerTableBody = document.querySelector("#spoilerTable tbody");
+  mainTableBody.innerHTML = "";
+  spoilerTableBody.innerHTML = "";
 
-    if(editId){
-      db.collection("records").doc(editId).set(record).then(clearForm);
-    } else {
-      db.collection("records").add(record).then(clearForm);
+  if(records.length){
+    const last = records[records.length-1];
+    mainTableBody.innerHTML = rowHTML(last);
+    for(let i=records.length-2;i>=0;i--){
+      spoilerTableBody.innerHTML += rowHTML(records[i]);
     }
   }
+  renderArchive(records, document.getElementById("archiveDate").value);
+}
 
-  function rowHTML(r){
-    return `<tr>
+function renderArchive(records, date){
+  const tbody = document.querySelector("#archiveTable tbody");
+  tbody.innerHTML = "";
+  records.filter(r=>r.date===date).forEach(r=>{
+    tbody.innerHTML += `<tr>
+      <td>${r.date} ${r.time}</td>
       <td>${r.eventName}</td>
       <td>${r.targetAudience}</td>
       <td>${r.growthZones}</td>
       <td>${r.comment}</td>
       <td>${r.participant}</td>
-      <td>
-        <button class="edit-btn" data-id="${r.id}">Редактировать</button>
-        <button class="delete-btn" data-id="${r.id}">Удалить</button>
-      </td>
     </tr>`;
-  }
+  });
+}
 
-  function renderTables(records){
-    const mainTableBody = document.querySelector("#mainTable tbody");
-    const spoilerTableBody = document.querySelector("#spoilerTable tbody");
-    mainTableBody.innerHTML = "";
-    spoilerTableBody.innerHTML = "";
+// Реальное время Firestore
+db.collection("records").orderBy("date").onSnapshot(snapshot=>{
+  const records = [];
+  snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
+  renderTables(records);
+});
 
-    if(records.length){
-      const last = records[records.length-1];
-      mainTableBody.innerHTML = rowHTML(last);
-      for(let i=records.length-2;i>=0;i--){
-        spoilerTableBody.innerHTML += rowHTML(records[i]);
-      }
-    }
-
-    renderArchive(records, document.getElementById("archiveDate").value);
-  }
-
-  function renderArchive(records, date){
-    const tbody = document.querySelector("#archiveTable tbody");
-    tbody.innerHTML = "";
-    records.filter(r=>r.date===date).forEach(r=>{
-      tbody.innerHTML += `<tr>
-        <td>${r.date} ${r.time}</td>
-        <td>${r.eventName}</td>
-        <td>${r.targetAudience}</td>
-        <td>${r.growthZones}</td>
-        <td>${r.comment}</td>
-        <td>${r.participant}</td>
-      </tr>`;
+// Делегирование редактирования и удаления
+document.addEventListener("click",(e)=>{
+  if(e.target.matches(".edit-btn")){
+    const id = e.target.dataset.id;
+    db.collection("records").doc(id).get().then(doc=>{
+      const r = doc.data();
+      document.getElementById("eventName").value = r.eventName;
+      document.getElementById("targetAudience").value = r.targetAudience;
+      document.getElementById("growthZones").value = r.growthZones;
+      document.getElementById("comment").value = r.comment;
+      document.getElementById("participant").value = r.participant;
+      editId = id;
     });
   }
+  if(e.target.matches(".delete-btn")){
+    const id = e.target.dataset.id;
+    db.collection("records").doc(id).delete().catch(console.error);
+  }
+});
 
-  db.collection("records").orderBy("date").onSnapshot(snapshot=>{
+document.getElementById("saveBtn").addEventListener("click", saveData);
+document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=>{
+  document.getElementById("spoilerTable").classList.toggle("hidden");
+});
+
+// Архив
+const archiveInput = document.getElementById("archiveDate");
+archiveInput.value = new Date().toISOString().split("T")[0];
+archiveInput.addEventListener("change", fetchArchive);
+document.getElementById("prevDateBtn").addEventListener("click", ()=>{
+  const d = new Date(archiveInput.value); d.setDate(d.getDate()-1);
+  archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
+});
+document.getElementById("nextDateBtn").addEventListener("click", ()=>{
+  const d = new Date(archiveInput.value); d.setDate(d.getDate()+1);
+  archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
+});
+
+function fetchArchive(){
+  db.collection("records").orderBy("date").get().then(snapshot=>{
     const records = [];
-    snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
-    renderTables(records);
+    snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
+    renderArchive(records, archiveInput.value);
   });
+}
 
-  document.addEventListener("click",(e)=>{
-    if(e.target.matches(".edit-btn")){
-      const id = e.target.dataset.id;
-      db.collection("records").doc(id).get().then(doc=>{
-        const r = doc.data();
-        document.getElementById("eventName").value = r.eventName;
-        document.getElementById("targetAudience").value = r.targetAudience;
-        document.getElementById("growthZones").value = r.growthZones;
-        document.getElementById("comment").value = r.comment;
-        document.getElementById("participant").value = r.participant;
-        editId = id;
-      });
-    }
-    if(e.target.matches(".delete-btn")){
-      const id = e.target.dataset.id;
-      db.collection("records").doc(id).delete();
-    }
-  });
-
-  document.getElementById("saveBtn").addEventListener("click", saveData);
-  document.getElementById("toggleSpoilerBtn").addEventListener("click",()=>{
-    document.getElementById("spoilerTable").classList.toggle("hidden");
-  });
-
-  const archiveInput = document.getElementById("archiveDate");
-  archiveInput.value = new Date().toISOString().split("T")[0];
-  archiveInput.addEventListener("change", fetchArchive);
-  document.getElementById("prevDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value); d.setDate(d.getDate()-1);
-    archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
-  });
-  document.getElementById("nextDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value); d.setDate(d.getDate()+1);
-    archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
-  });
-
-  function fetchArchive(){
-    db.collection("records").orderBy("date").get().then(snapshot=>{
-      const records = [];
-      snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
-      renderArchive(records, archiveInput.value);
+// CSV
+document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
+  db.collection("records").orderBy("date").get().then(snapshot=>{
+    if(snapshot.empty){ alert("Архив пуст!"); return; }
+    let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
+    snapshot.forEach(doc=>{
+      const r = doc.data();
+      csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
     });
-  }
-
-  document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
-    db.collection("records").orderBy("date").get().then(snapshot=>{
-      if(snapshot.empty){ alert("Архив пуст!"); return; }
-      let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
-      snapshot.forEach(doc=>{
-        const r = doc.data();
-        csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
-      });
-      const BOM = "\uFEFF";
-      const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "archive.csv";
-      link.click();
-    });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "archive.csv";
+    link.click();
   });
+});
 </script>
 </body>
 </html>
+
+
 
 
 
