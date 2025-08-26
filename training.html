@@ -12,7 +12,7 @@ h1,h2 { margin:0 0 12px 0; }
 .form-section { flex:1; min-width:260px; }
 .table-section { flex:2; min-width:420px; }
 label { display:block; margin-top:10px; font-size:13px; }
-input[type="text"], textarea, select, input[type="date"] {
+input[type="text"], textarea, input[type="date"] {
   width:100%; padding:8px; margin-top:6px; box-sizing:border-box; border:1px solid #d0d0d0; border-radius:4px;
 }
 textarea { min-height:60px; resize:vertical; }
@@ -32,7 +32,6 @@ th { background:#f0f0f0; font-weight:600; }
 <body>
 
 <div class="grid">
-  <!-- Форма -->
   <div class="container form-section">
     <h1>Форма внесения данных</h1>
 
@@ -63,7 +62,6 @@ th { background:#f0f0f0; font-weight:600; }
     </div>
   </div>
 
-  <!-- Таблицы -->
   <div class="container table-section">
     <h2>Основная таблица</h2>
     <table id="mainTable">
@@ -99,7 +97,6 @@ th { background:#f0f0f0; font-weight:600; }
   </div>
 </div>
 
-<!-- Архив -->
 <div class="container" style="margin-top:16px;">
   <h2>Архив записей</h2>
   <div style="display:flex; align-items:center; gap:8px;">
@@ -127,34 +124,28 @@ th { background:#f0f0f0; font-weight:600; }
 <script>
 let editIndex = null;
 
-function getRecords() {
-  return JSON.parse(localStorage.getItem('records') || '[]');
-}
-function setRecords(records) {
-  localStorage.setItem('records', JSON.stringify(records));
-}
+function getRecords() { return JSON.parse(localStorage.getItem('records')||'[]'); }
+function setRecords(records) { localStorage.setItem('records',JSON.stringify(records)); }
+function getLastUploadedIndex(){ return parseInt(localStorage.getItem('lastUploadedIndex')||'-1'); }
+function setLastUploadedIndex(idx){ localStorage.setItem('lastUploadedIndex',idx); }
 
-function escapeHtml(s){return s?s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'):"";}
-function escapeCsv(s){return s?s.replace(/"/g,'""'):"";}
+function escapeHtml(s){ return s?s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'):""; }
+function escapeCsv(s){ return s?s.replace(/"/g,'""'):""; }
 
-function refreshAll() {
-  renderMainTable();
-  renderArchiveTableForSelectedDate();
-}
+function refreshAll() { renderMainTable(); renderArchiveTableForSelectedDate(); }
 
-// --- CRUD ---
 function saveRecord() {
-  const eventName = document.getElementById('eventName').value.trim();
-  const participant = document.getElementById('participant').value.trim();
-  if(!eventName||!participant){alert("Заполните обязательные поля"); return;}
-  const records = getRecords();
+  const eventName=document.getElementById('eventName').value.trim();
+  const participant=document.getElementById('participant').value.trim();
+  if(!eventName||!participant){alert("Заполните обязательные поля");return;}
+  const records=getRecords();
   records.push({
-    date: new Date().toISOString().split('T')[0],
-    time: new Date().toLocaleTimeString(),
+    date:new Date().toISOString().split('T')[0],
+    time:new Date().toLocaleTimeString(),
     eventName,
-    targetAudience: document.getElementById('targetAudience').value.trim(),
-    growthZones: document.getElementById('growthZones').value.trim(),
-    comment: document.getElementById('comment').value.trim(),
+    targetAudience:document.getElementById('targetAudience').value.trim(),
+    growthZones:document.getElementById('growthZones').value.trim(),
+    comment:document.getElementById('comment').value.trim(),
     participant
   });
   setRecords(records);
@@ -165,8 +156,8 @@ function saveRecord() {
 
 function updateRecord() {
   if(editIndex===null) return;
-  const records = getRecords();
-  const r = records[editIndex];
+  const records=getRecords();
+  const r=records[editIndex];
   r.eventName=document.getElementById('eventName').value.trim();
   r.targetAudience=document.getElementById('targetAudience').value.trim();
   r.growthZones=document.getElementById('growthZones').value.trim();
@@ -178,153 +169,83 @@ function updateRecord() {
   refreshAll();
 }
 
-function clearForm(){
-  ["eventName","targetAudience","growthZones","comment","participant"].forEach(id=>document.getElementById(id).value="");
-}
+function clearForm(){ ["eventName","targetAudience","growthZones","comment","participant"].forEach(id=>document.getElementById(id).value=""); }
+function showSaveMode(){ document.getElementById('saveBtn').classList.remove('hidden'); document.getElementById('updateBtn').classList.add('hidden'); document.getElementById('cancelBtn').classList.add('hidden'); editIndex=null; }
+function showEditMode(){ document.getElementById('saveBtn').classList.add('hidden'); document.getElementById('updateBtn').classList.remove('hidden'); document.getElementById('cancelBtn').classList.remove('hidden'); }
 
-function showSaveMode(){
-  document.getElementById('saveBtn').classList.remove('hidden');
-  document.getElementById('updateBtn').classList.add('hidden');
-  document.getElementById('cancelBtn').classList.add('hidden');
-  editIndex=null;
-}
-function showEditMode(){
-  document.getElementById('saveBtn').classList.add('hidden');
-  document.getElementById('updateBtn').classList.remove('hidden');
-  document.getElementById('cancelBtn').classList.remove('hidden');
-}
-
-// --- Таблицы ---
-function rowHtml(r, idx){
-  return `<tr>
-    <td>${escapeHtml(r.eventName)}</td>
-    <td>${escapeHtml(r.targetAudience||'')}</td>
-    <td>${escapeHtml(r.growthZones||'')}</td>
-    <td>${escapeHtml(r.comment||'')}</td>
-    <td>${escapeHtml(r.participant||'')}</td>
-    <td>
-      <button class="small" onclick="editRecord(${idx})">Редактировать</button>
-      <button class="small danger" onclick="deleteRecord(${idx})">Удалить</button>
-    </td>
-  </tr>`;
-}
+function rowHtml(r,idx){ return `<tr>
+<td>${escapeHtml(r.eventName)}</td>
+<td>${escapeHtml(r.targetAudience||'')}</td>
+<td>${escapeHtml(r.growthZones||'')}</td>
+<td>${escapeHtml(r.comment||'')}</td>
+<td>${escapeHtml(r.participant||'')}</td>
+<td>
+<button class="small" onclick="editRecord(${idx})">Редактировать</button>
+<button class="small danger" onclick="deleteRecord(${idx})">Удалить</button>
+</td>
+</tr>`; }
 
 function renderMainTable(){
   const records=getRecords();
   const mainBody=document.querySelector('#mainTable tbody');
   const spoilerBody=document.querySelector('#spoilerTable tbody');
   mainBody.innerHTML=''; spoilerBody.innerHTML='';
-  if(!records.length){
-    mainBody.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>';
-    document.getElementById('toggleSpoilerBtn').classList.add('hidden');
-    return;
-  }
+  if(!records.length){ mainBody.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>'; document.getElementById('toggleSpoilerBtn').classList.add('hidden'); return; }
   mainBody.innerHTML=rowHtml(records[records.length-1],records.length-1);
-  if(records.length>1){
-    document.getElementById('toggleSpoilerBtn').classList.remove('hidden');
-    for(let i=records.length-2;i>=0;i--){
-      spoilerBody.innerHTML+=rowHtml(records[i],i);
-    }
-  }
+  if(records.length>1){ document.getElementById('toggleSpoilerBtn').classList.remove('hidden'); for(let i=records.length-2;i>=0;i--) spoilerBody.innerHTML+=rowHtml(records[i],i); }
 }
 
-function editRecord(idx){
-  const r=getRecords()[idx];
-  document.getElementById('eventName').value=r.eventName;
-  document.getElementById('targetAudience').value=r.targetAudience||'';
-  document.getElementById('growthZones').value=r.growthZones||'';
-  document.getElementById('comment').value=r.comment||'';
-  document.getElementById('participant').value=r.participant||'';
-  editIndex=idx;
-  showEditMode();
-}
+function editRecord(idx){ const r=getRecords()[idx]; document.getElementById('eventName').value=r.eventName; document.getElementById('targetAudience').value=r.targetAudience||''; document.getElementById('growthZones').value=r.growthZones||''; document.getElementById('comment').value=r.comment||''; document.getElementById('participant').value=r.participant||''; editIndex=idx; showEditMode(); }
+function deleteRecord(idx){ if(!confirm('Удалить запись?')) return; const records=getRecords(); records.splice(idx,1); setRecords(records); if(editIndex===idx) showSaveMode(); refreshAll(); }
+function toggleSpoiler(){ const table=document.getElementById('spoilerTable'); const btn=document.getElementById('toggleSpoilerBtn'); table.classList.toggle('hidden'); btn.textContent=table.classList.contains('hidden')?'Показать все записи':'Скрыть записи'; }
 
-function deleteRecord(idx){
-  if(!confirm('Удалить запись?')) return;
-  const records=getRecords();
-  records.splice(idx,1);
-  setRecords(records);
-  if(editIndex===idx) showSaveMode();
-  refreshAll();
-}
-
-function toggleSpoiler(){
-  const table=document.getElementById('spoilerTable');
-  const btn=document.getElementById('toggleSpoilerBtn');
-  table.classList.toggle('hidden');
-  btn.textContent=table.classList.contains('hidden')?'Показать все записи':'Скрыть записи';
-}
-
-// --- Архив ---
 const archiveInput=document.getElementById('archiveDate');
-
 function renderArchiveTableForSelectedDate(){
-  const records=getRecords();
-  const body=document.querySelector('#archiveTable tbody');
-  const date=archiveInput.value;
+  const records=getRecords(); const body=document.querySelector('#archiveTable tbody'); const date=archiveInput.value;
   if(!date){body.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>'; return;}
   const filtered=records.filter(r=>r.date===date);
   if(!filtered.length){body.innerHTML='<tr><td colspan="6" class="muted">Записей в этот день нет</td></tr>'; return;}
-  body.innerHTML='';
-  filtered.forEach(r=>{
-    body.innerHTML+=`<tr>
-      <td>${escapeHtml(r.date)} ${escapeHtml(r.time||'')}</td>
-      <td>${escapeHtml(r.eventName)}</td>
-      <td>${escapeHtml(r.targetAudience||'')}</td>
-      <td>${escapeHtml(r.growthZones||'')}</td>
-      <td>${escapeHtml(r.comment||'')}</td>
-      <td>${escapeHtml(r.participant||'')}</td>
-    </tr>`;
-  });
+  body.innerHTML=''; filtered.forEach(r=>{ body.innerHTML+=`<tr>
+<td>${escapeHtml(r.date)} ${escapeHtml(r.time||'')}</td>
+<td>${escapeHtml(r.eventName)}</td>
+<td>${escapeHtml(r.targetAudience||'')}</td>
+<td>${escapeHtml(r.growthZones||'')}</td>
+<td>${escapeHtml(r.comment||'')}</td>
+<td>${escapeHtml(r.participant||'')}</td>
+</tr>`; });
 }
 
-function prevDate(){
-  const d=new Date(archiveInput.value); d.setDate(d.getDate()-1);
-  archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate();
-}
-function nextDate(){
-  const d=new Date(archiveInput.value); d.setDate(d.getDate()+1);
-  archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate();
-}
+function prevDate(){ const d=new Date(archiveInput.value); d.setDate(d.getDate()-1); archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
+function nextDate(){ const d=new Date(archiveInput.value); d.setDate(d.getDate()+1); archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
 
-archiveInput.addEventListener('change',renderArchiveTableForSelectedDate);
-
-// --- CSV ---
-document.getElementById('downloadCSVBtn').addEventListener('click',()=>{
-  const records=getRecords();
-  if(!records.length){alert('Архив пуст!'); return;}
-  let csv='Дата;Время;Название;ЦА;Зоны роста;Комментарий;Участник\n';
-  records.forEach(r=>csv+=`"${r.date}";"${r.time||''}";"${escapeCsv(r.eventName)}";"${escapeCsv(r.targetAudience||'')}";"${escapeCsv(r.growthZones||'')}";"${escapeCsv(r.comment||'')}";"${escapeCsv(r.participant||'')}"\n`);
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='архив.csv'; link.click();
-});
-
-// --- Google Sheets выгрузка ---
-document.getElementById('uploadSheetsBtn').addEventListener('click',()=>{
-  const records=getRecords();
-  if(!records.length){alert('Нет записей для выгрузки'); return;}
-  const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbz3K7DLnpM11ytbrU7bjB2cDMaHSv6MM18qoayLoGIdEwSX-RlhPRJZ4ssCMNvVsi2x/exec';
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(records)
-  })
-  .then(res=>res.json())
-  .then(()=>alert('Данные успешно выгружены в Google Sheets!'))
-  .catch(err=>{console.error(err); alert('Ошибка при выгрузке')});
-});
-
-// --- кнопки формы ---
 document.getElementById('saveBtn').addEventListener('click',saveRecord);
 document.getElementById('updateBtn').addEventListener('click',updateRecord);
-document.getElementById('cancelBtn').addEventListener('click',()=>{
-  clearForm(); showSaveMode();
+document.getElementById('cancelBtn').addEventListener('click',()=>{clearForm();showSaveMode();});
+document.getElementById('toggleSpoilerBtn').addEventListener('click',toggleSpoiler);
+document.getElementById('prevDateBtn').addEventListener('click',prevDate);
+document.getElementById('nextDateBtn').addEventListener('click',nextDate);
+document.getElementById('downloadCSVBtn').addEventListener('click',()=>{
+  const records=getRecords(); if(!records.length){alert('Архив пуст!');return;}
+  let csv='Дата;Время;Название;ЦА;Зоны роста;Комментарий;Участник\n';
+  records.forEach(r=>csv+=`"${r.date}";"${r.time||''}";"${escapeCsv(r.eventName)}";"${escapeCsv(r.targetAudience||'')}";"${escapeCsv(r.growthZones||'')}";"${escapeCsv(r.comment||'')}";"${escapeCsv(r.participant||'')}"\n`);
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='архив.csv'; link.click();
 });
 
-// --- старт ---
-archiveInput.value=new Date().toISOString().split('T')[0];
-refreshAll();
-showSaveMode();
+// ===== Google Sheets upload =====
+document.getElementById('uploadSheetsBtn').addEventListener('click',()=>{
+  const records=getRecords(); const last=getLastUploadedIndex(); const newRecords=records.slice(last+1);
+  if(!newRecords.length){ alert('Нет новых записей для выгрузки'); return; }
+  const APPS_SCRIPT_URL='ВАШ_URL_APPS_SCRIPT'; // Вставьте ваш URL Web App
+  fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newRecords)})
+  .then(res=>res.json())
+  .then(()=>{ alert(`${newRecords.length} запись(ей) успешно выгружено в Google Sheets!`); setLastUploadedIndex(records.length-1); })
+  .catch(err=>{ console.error(err); alert('Ошибка при выгрузке'); });
+});
+
+// Инициализация календаря
+function initArchiveDate(){ const records=getRecords(); if(!records.length) return; const dates=[...new Set(records.map(r=>r.date))].sort(); archiveInput.value=dates[dates.length-1]||new Date().toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
+
+window.addEventListener('load',()=>{refreshAll();showSaveMode();initArchiveDate();});
 </script>
 
 </body>
