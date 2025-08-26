@@ -11,12 +11,10 @@ th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
 th { background: #eaeaea; }
 input, textarea { width: 100%; padding: 6px; margin: 4px 0; }
 button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
-.container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:20px; }
 .grid { display: flex; gap: 20px; }
 .form-section { flex: 1; }
 .table-section { flex: 2; }
-.spoiler { margin-top: 10px; }
-.spoiler button { margin-bottom: 8px; }
 .hidden { display: none; }
 </style>
 </head>
@@ -115,6 +113,7 @@ const db = firebase.firestore();
 
 let editId = null;
 
+// Очистка формы
 function clearForm(){
   document.getElementById("eventName").value = "";
   document.getElementById("targetAudience").value = "";
@@ -124,19 +123,22 @@ function clearForm(){
   editId = null;
 }
 
+// Сохранение записи
 function saveData(){
-  const eventName = document.getElementById("eventName").value.trim();
-  const targetAudience = document.getElementById("targetAudience").value.trim();
-  const growthZones = document.getElementById("growthZones").value.trim();
-  const comment = document.getElementById("comment").value.trim();
-  const participant = document.getElementById("participant").value.trim();
-  if(!eventName || !participant){ alert("Заполните обязательные поля!"); return; }
-
   const record = {
     date: new Date().toISOString().split("T")[0],
     time: new Date().toLocaleTimeString(),
-    eventName, targetAudience, growthZones, comment, participant
+    eventName: document.getElementById("eventName").value.trim(),
+    targetAudience: document.getElementById("targetAudience").value.trim(),
+    growthZones: document.getElementById("growthZones").value.trim(),
+    comment: document.getElementById("comment").value.trim(),
+    participant: document.getElementById("participant").value.trim()
   };
+
+  if(!record.eventName || !record.participant){
+    alert("Заполните обязательные поля!");
+    return;
+  }
 
   if(editId){
     db.collection("records").doc(editId).set(record).then(clearForm).catch(console.error);
@@ -145,6 +147,7 @@ function saveData(){
   }
 }
 
+// Формирование строки таблицы
 function rowHTML(r){
   return `<tr>
     <td>${r.eventName}</td>
@@ -159,6 +162,7 @@ function rowHTML(r){
   </tr>`;
 }
 
+// Рендер таблиц
 function renderTables(records){
   const mainTableBody = document.querySelector("#mainTable tbody");
   const spoilerTableBody = document.querySelector("#spoilerTable tbody");
@@ -172,9 +176,11 @@ function renderTables(records){
       spoilerTableBody.innerHTML += rowHTML(records[i]);
     }
   }
+
   renderArchive(records, document.getElementById("archiveDate").value);
 }
 
+// Рендер архива по дате
 function renderArchive(records, date){
   const tbody = document.querySelector("#archiveTable tbody");
   tbody.innerHTML = "";
@@ -190,15 +196,15 @@ function renderArchive(records, date){
   });
 }
 
-// Реальное время Firestore
+// Подписка на Firestore (реальное время)
 db.collection("records").orderBy("date").onSnapshot(snapshot=>{
   const records = [];
   snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
   renderTables(records);
 });
 
-// Делегирование редактирования и удаления
-document.addEventListener("click",(e)=>{
+// Делегирование кнопок редактирования и удаления
+document.addEventListener("click", (e)=>{
   if(e.target.matches(".edit-btn")){
     const id = e.target.dataset.id;
     db.collection("records").doc(id).get().then(doc=>{
@@ -217,6 +223,7 @@ document.addEventListener("click",(e)=>{
   }
 });
 
+// Кнопки
 document.getElementById("saveBtn").addEventListener("click", saveData);
 document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=>{
   document.getElementById("spoilerTable").classList.toggle("hidden");
@@ -263,6 +270,7 @@ document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
 </script>
 </body>
 </html>
+
 
 
 
