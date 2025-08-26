@@ -13,7 +13,6 @@
     button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     .container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 
-    /* сетка */
     .grid { display: flex; gap: 20px; }
     .form-section { flex: 1; }
     .table-section { flex: 2; }
@@ -26,7 +25,6 @@
 <body>
 
 <div class="grid">
-  <!-- Форма -->
   <div class="container form-section">
     <h1>Форма внесения данных</h1>
     <label>Название обучающего мероприятия:</label>
@@ -44,10 +42,9 @@
     <label>Участник:</label>
     <input type="text" id="participant">
 
-    <button onclick="saveData()">Сохранить</button>
+    <button id="saveBtn">Сохранить</button>
   </div>
 
-  <!-- Основная таблица -->
   <div class="container table-section">
     <h2>Основная таблица</h2>
     <table id="mainTable">
@@ -65,7 +62,7 @@
     </table>
 
     <div class="spoiler">
-      <button onclick="toggleSpoiler()">Показать все записи</button>
+      <button id="toggleSpoilerBtn">Показать все записи</button>
       <table id="spoilerTable" class="hidden">
         <thead>
           <tr>
@@ -83,14 +80,13 @@
   </div>
 </div>
 
-<!-- Архив -->
 <div class="container">
   <h2>Архив записей</h2>
   <label>Выберите дату:</label>
-  <input type="date" id="archiveDate" onchange="filterArchive()">
-  <button onclick="prevDate()">⬅ Предыдущая</button>
-  <button onclick="nextDate()">Следующая ➡</button>
-  <button onclick="downloadCSV()">📥 Скачать архив (Excel/CSV)</button>
+  <input type="date" id="archiveDate">
+  <button id="prevDateBtn">⬅ Предыдущая</button>
+  <button id="nextDateBtn">Следующая ➡</button>
+  <button id="downloadCSVBtn">📥 Скачать архив (Excel/CSV)</button>
 
   <table id="archiveTable">
     <thead>
@@ -108,183 +104,181 @@
 </div>
 
 <script>
-  let editIndex = null; // индекс редактируемой записи
+let editIndex = null;
 
-  function loadData() {
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-    updateTables(records);
-    setTodayArchive();
+function loadData() {
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  updateTables(records);
+  setTodayArchive();
+}
+
+function saveData() {
+  const eventName = document.getElementById("eventName").value.trim();
+  const targetAudience = document.getElementById("targetAudience").value.trim();
+  const growthZones = document.getElementById("growthZones").value.trim();
+  const comment = document.getElementById("comment").value.trim();
+  const participant = document.getElementById("participant").value.trim();
+
+  if (!eventName || !participant) {
+    alert("Заполните обязательные поля: Название и Участник!");
+    return;
   }
 
-  function saveData() {
-    let eventName = document.getElementById("eventName").value;
-    let targetAudience = document.getElementById("targetAudience").value;
-    let growthZones = document.getElementById("growthZones").value;
-    let comment = document.getElementById("comment").value;
-    let participant = document.getElementById("participant").value;
+  const record = {
+    date: new Date().toISOString().split("T")[0],
+    time: new Date().toLocaleTimeString(),
+    eventName, targetAudience, growthZones, comment, participant
+  };
 
-    if (!eventName || !participant) {
-      alert("Заполните обязательные поля: Название и Участник!");
-      return;
-    }
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
 
-    let record = {
-      date: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-      time: new Date().toLocaleTimeString(),
-      eventName,
-      targetAudience,
-      growthZones,
-      comment,
-      participant
-    };
-
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-
-    if (editIndex !== null) {
-      records[editIndex] = record; // обновляем запись
-      editIndex = null;
-    } else {
-      records.push(record); // новая запись
-    }
-
-    localStorage.setItem("records", JSON.stringify(records));
-    updateTables(records);
-
-    // Очистка формы
-    document.getElementById("eventName").value = "";
-    document.getElementById("targetAudience").value = "";
-    document.getElementById("growthZones").value = "";
-    document.getElementById("comment").value = "";
-    document.getElementById("participant").value = "";
+  if (editIndex !== null) {
+    records[editIndex] = record;
+    editIndex = null;
+  } else {
+    records.push(record);
   }
 
-  function editRecord(index) {
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-    let r = records[index];
-    document.getElementById("eventName").value = r.eventName;
-    document.getElementById("targetAudience").value = r.targetAudience;
-    document.getElementById("growthZones").value = r.growthZones;
-    document.getElementById("comment").value = r.comment;
-    document.getElementById("participant").value = r.participant;
-    editIndex = index;
-  }
+  localStorage.setItem("records", JSON.stringify(records));
+  updateTables(records);
+  clearForm();
+}
 
-  function deleteRecord(index) {
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-    records.splice(index, 1);
-    localStorage.setItem("records", JSON.stringify(records));
-    updateTables(records);
-  }
+function clearForm() {
+  document.getElementById("eventName").value = "";
+  document.getElementById("targetAudience").value = "";
+  document.getElementById("growthZones").value = "";
+  document.getElementById("comment").value = "";
+  document.getElementById("participant").value = "";
+}
 
-  function updateTables(records) {
-    let mainTableBody = document.querySelector("#mainTable tbody");
-    let spoilerTableBody = document.querySelector("#spoilerTable tbody");
-    mainTableBody.innerHTML = "";
-    spoilerTableBody.innerHTML = "";
+function updateTables(records) {
+  const mainTableBody = document.querySelector("#mainTable tbody");
+  const spoilerTableBody = document.querySelector("#spoilerTable tbody");
+  mainTableBody.innerHTML = "";
+  spoilerTableBody.innerHTML = "";
 
-    if (records.length > 0) {
-      let lastIndex = records.length - 1;
-      let r = records[lastIndex];
-      mainTableBody.innerHTML = rowHTML(r, lastIndex);
+  if (records.length > 0) {
+    const lastIndex = records.length - 1;
+    mainTableBody.innerHTML = rowHTML(records[lastIndex], lastIndex);
 
-      for (let i = records.length - 2; i >= 0; i--) {
-        spoilerTableBody.innerHTML += rowHTML(records[i], i);
-      }
+    for (let i = records.length - 2; i >= 0; i--) {
+      spoilerTableBody.innerHTML += rowHTML(records[i], i);
     }
   }
+}
 
-  function rowHTML(r, i) {
-    return `<tr>
-      <td>${r.eventName}</td>
-      <td>${r.targetAudience}</td>
-      <td>${r.growthZones}</td>
-      <td>${r.comment}</td>
-      <td>${r.participant}</td>
-      <td>
-        <button onclick="editRecord(${i})">Редактировать</button>
-        <button onclick="deleteRecord(${i})">Удалить</button>
-      </td>
-    </tr>`;
-  }
+function rowHTML(r, i) {
+  return `<tr>
+    <td>${r.eventName}</td>
+    <td>${r.targetAudience}</td>
+    <td>${r.growthZones}</td>
+    <td>${r.comment}</td>
+    <td>${r.participant}</td>
+    <td>
+      <button class="edit-btn" data-index="${i}">Редактировать</button>
+      <button class="delete-btn" data-index="${i}">Удалить</button>
+    </td>
+  </tr>`;
+}
 
-  function toggleSpoiler() {
-    let table = document.getElementById("spoilerTable");
-    let btn = table.previousElementSibling;
-    if (table.classList.contains("hidden")) {
-      table.classList.remove("hidden");
-      btn.textContent = "Скрыть записи";
-    } else {
-      table.classList.add("hidden");
-      btn.textContent = "Показать все записи";
+function toggleSpoiler() {
+  const table = document.getElementById("spoilerTable");
+  const btn = document.getElementById("toggleSpoilerBtn");
+  table.classList.toggle("hidden");
+  btn.textContent = table.classList.contains("hidden") ? "Показать все записи" : "Скрыть записи";
+}
+
+function setTodayArchive() {
+  const input = document.getElementById("archiveDate");
+  input.value = new Date().toISOString().split("T")[0];
+  filterArchive();
+}
+
+function filterArchive() {
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  const chosenDate = document.getElementById("archiveDate").value;
+  const archiveTableBody = document.querySelector("#archiveTable tbody");
+  archiveTableBody.innerHTML = "";
+
+  records.forEach(r => {
+    if (r.date === chosenDate) {
+      archiveTableBody.innerHTML += `<tr>
+        <td>${r.date} ${r.time}</td>
+        <td>${r.eventName}</td>
+        <td>${r.targetAudience}</td>
+        <td>${r.growthZones}</td>
+        <td>${r.comment}</td>
+        <td>${r.participant}</td>
+      </tr>`;
     }
+  });
+}
+
+function changeDate(days) {
+  const input = document.getElementById("archiveDate");
+  const d = new Date(input.value);
+  d.setDate(d.getDate() + days);
+  input.value = d.toISOString().split("T")[0];
+  filterArchive();
+}
+
+function downloadCSV() {
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  if (records.length === 0) {
+    alert("Архив пуст!");
+    return;
   }
 
-  function setTodayArchive() {
-    let input = document.getElementById("archiveDate");
-    let today = new Date().toISOString().split("T")[0];
-    input.value = today;
-    filterArchive();
-  }
+  let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
+  records.forEach(r => {
+    csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+  });
 
-  function filterArchive() {
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-    let chosenDate = document.getElementById("archiveDate").value;
-    let archiveTableBody = document.querySelector("#archiveTable tbody");
-    archiveTableBody.innerHTML = "";
+  const BOM = "\uFEFF";
+  const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "archive.csv";
+  link.click();
+}
 
-    records.forEach(r => {
-      if (r.date === chosenDate) {
-        archiveTableBody.innerHTML += `<tr>
-          <td>${r.date} ${r.time}</td>
-          <td>${r.eventName}</td>
-          <td>${r.targetAudience}</td>
-          <td>${r.growthZones}</td>
-          <td>${r.comment}</td>
-          <td>${r.participant}</td>
-        </tr>`;
-      }
-    });
-  }
+// Делегирование событий для динамических кнопок
+document.addEventListener("click", (e) => {
+  if (e.target.matches(".edit-btn")) editRecord(e.target.dataset.index);
+  if (e.target.matches(".delete-btn")) deleteRecord(e.target.dataset.index);
+});
 
-  function prevDate() {
-    let input = document.getElementById("archiveDate");
-    let d = new Date(input.value);
-    d.setDate(d.getDate() - 1);
-    input.value = d.toISOString().split("T")[0];
-    filterArchive();
-  }
+function editRecord(index) {
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  const r = records[index];
+  document.getElementById("eventName").value = r.eventName;
+  document.getElementById("targetAudience").value = r.targetAudience;
+  document.getElementById("growthZones").value = r.growthZones;
+  document.getElementById("comment").value = r.comment;
+  document.getElementById("participant").value = r.participant;
+  editIndex = index;
+}
 
-  function nextDate() {
-    let input = document.getElementById("archiveDate");
-    let d = new Date(input.value);
-    d.setDate(d.getDate() + 1);
-    input.value = d.toISOString().split("T")[0];
-    filterArchive();
-  }
+function deleteRecord(index) {
+  const records = JSON.parse(localStorage.getItem("records") || "[]");
+  records.splice(index, 1);
+  localStorage.setItem("records", JSON.stringify(records));
+  updateTables(records);
+}
 
-  function downloadCSV() {
-    let records = JSON.parse(localStorage.getItem("records") || "[]");
-    if (records.length === 0) {
-      alert("Архив пуст!");
-      return;
-    }
+// Обработчики кнопок
+document.getElementById("saveBtn").addEventListener("click", saveData);
+document.getElementById("toggleSpoilerBtn").addEventListener("click", toggleSpoiler);
+document.getElementById("prevDateBtn").addEventListener("click", () => changeDate(-1));
+document.getElementById("nextDateBtn").addEventListener("click", () => changeDate(1));
+document.getElementById("downloadCSVBtn").addEventListener("click", downloadCSV);
 
-    let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
-    records.forEach(r => {
-      csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
-    });
-
-    let BOM = "\uFEFF";
-    let blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "archive.csv";
-    link.click();
-  }
-
-  loadData();
+loadData();
 </script>
 
 </body>
 </html>
+
+
 
