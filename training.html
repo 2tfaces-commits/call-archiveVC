@@ -1,255 +1,177 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<title>Прослушка звонков</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<title>Прослушка звонков + Google Sheets</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; background:#f7f7f7; color:#111; }
-h1,h2 { margin:0 0 12px 0; }
-.container { background:#fff; padding:16px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.grid { display:flex; gap:16px; align-items:flex-start; }
-.form-section { flex:1; min-width:260px; }
-.table-section { flex:2; min-width:420px; }
-label { display:block; margin-top:10px; font-size:13px; }
-input[type="text"], textarea, input[type="date"] {
-  width:100%; padding:8px; margin-top:6px; box-sizing:border-box; border:1px solid #d0d0d0; border-radius:4px;
-}
-textarea { min-height:60px; resize:vertical; }
-button { padding:8px 12px; margin-top:10px; cursor:pointer; border-radius:6px; border:1px solid #bbb; background:#f6f6f6; }
-button.primary { background:#2b8aef; color:white; border-color:#2577d4; }
-button.danger { background:#ffdddd; border-color:#ff8a8a; }
-button.small { padding:6px 8px; font-size:13px; }
-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
-th, td { border:1px solid #e0e0e0; padding:8px; vertical-align:top; text-align:left; background:#fff; }
-th { background:#f0f0f0; font-weight:600; }
-.spoiler { margin-top:12px; }
-.hidden { display:none; }
-.controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
-.muted { color:#666; font-size:13px; }
+  body { font-family: Arial,sans-serif; margin:20px; background:#f7f7f7; color:#111; }
+  h1,h2 { margin:0 0 12px 0; }
+  .container { background:#fff; padding:16px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.06); margin-bottom:16px; }
+  input,textarea,select { width:100%; padding:8px; margin-top:6px; box-sizing:border-box; border:1px solid #d0d0d0; border-radius:4px; }
+  textarea { min-height:60px; resize:vertical; }
+  button { padding:6px 12px; margin-top:8px; cursor:pointer; border-radius:6px; border:1px solid #bbb; background:#f6f6f6; }
+  button.primary { background:#2b8aef; color:white; border-color:#2577d4; }
+  button.danger { background:#ffdddd; border-color:#ff8a8a; }
+  .small { padding:4px 8px; font-size:13px; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  th,td { border:1px solid #e0e0e0; padding:8px; text-align:left; vertical-align:top; }
+  th { background:#f0f0f0; font-weight:600; }
+  .muted { color:#666; font-size:13px; }
+  .hidden { display:none; }
+  .controls { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .status { margin-top:6px; font-size:13px; }
 </style>
 </head>
 <body>
 
-<div class="grid">
-  <div class="container form-section">
-    <h1>Форма внесения данных</h1>
+<div class="container">
+  <h1>Форма внесения данных</h1>
+  <label>Название:</label><input type="text" id="eventName">
+  <label>ЦА:</label><input type="text" id="targetAudience">
+  <label>Зоны роста:</label><textarea id="growthZones"></textarea>
+  <label>Комментарий:</label><textarea id="comment"></textarea>
+  <label>Участник:</label><input type="text" id="participant">
 
-    <label>Название обучающего мероприятия:</label>
-    <input type="text" id="eventName" placeholder="Название">
-
-    <label>ЦА:</label>
-    <input type="text" id="targetAudience" placeholder="Целевая аудитория">
-
-    <label>Зоны роста:</label>
-    <textarea id="growthZones" placeholder="Зоны роста..."></textarea>
-
-    <label>Комментарий:</label>
-    <textarea id="comment" placeholder="Комментарий..."></textarea>
-
-    <label>Участник:</label>
-    <input type="text" id="participant" placeholder="Имя участника">
-
-    <div class="controls">
-      <button id="saveBtn" class="primary">Сохранить</button>
-      <button id="updateBtn" class="primary hidden">Обновить</button>
-      <button id="cancelBtn" class="small hidden">Отмена</button>
-      <button id="uploadSheetsBtn" class="small" style="margin-left:auto;">📤 Google Sheets</button>
-    </div>
-
-    <div class="muted" style="margin-top:10px;">
-      Данные хранятся в localStorage браузера. Выгрузка в Google Sheets доступна всем по ссылке.
-    </div>
+  <div class="controls">
+    <button id="saveBtn" class="primary">Сохранить</button>
+    <button id="updateBtn" class="primary hidden">Обновить</button>
+    <button id="cancelBtn" class="small hidden">Отмена</button>
   </div>
 
-  <div class="container table-section">
-    <h2>Основная таблица</h2>
-    <table id="mainTable">
-      <thead>
-        <tr>
-          <th>Название</th>
-          <th>ЦА</th>
-          <th>Зоны роста</th>
-          <th>Комментарий</th>
-          <th>Участник</th>
-          <th>Действие</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-
-    <div class="spoiler">
-      <button id="toggleSpoilerBtn" class="small">Показать все записи</button>
-      <table id="spoilerTable" class="hidden">
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>ЦА</th>
-            <th>Зоны роста</th>
-            <th>Комментарий</th>
-            <th>Участник</th>
-            <th>Действие</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </div>
+  <div class="muted">Данные хранятся в браузере (localStorage).</div>
+  <div id="status" class="status"></div>
 </div>
 
-<div class="container" style="margin-top:16px;">
-  <h2>Архив записей</h2>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <label>Дата:</label>
+<div class="container">
+  <h2>Основная таблица</h2>
+  <table id="mainTable">
+    <thead>
+      <tr><th>Название</th><th>ЦА</th><th>Зоны роста</th><th>Комментарий</th><th>Участник</th><th>Действие</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="container">
+  <h2>Архив по дате</h2>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <button id="prevDateBtn" class="small">⬅</button>
     <input type="date" id="archiveDate">
-    <button class="small" id="prevDateBtn">⬅</button>
-    <button class="small" id="nextDateBtn">➡</button>
-    <button class="small" id="downloadCSVBtn" style="margin-left:auto;">📥 Скачать CSV</button>
+    <button id="nextDateBtn" class="small">➡</button>
+    <button id="uploadSheetsBtn" style="margin-left:auto;">📤 Выгрузить в Google Sheets</button>
   </div>
   <table id="archiveTable">
     <thead>
-      <tr>
-        <th>Дата / Время</th>
-        <th>Название</th>
-        <th>ЦА</th>
-        <th>Зоны роста</th>
-        <th>Комментарий</th>
-        <th>Участник</th>
-      </tr>
+      <tr><th>Дата</th><th>Время</th><th>Название</th><th>ЦА</th><th>Зоны роста</th><th>Комментарий</th><th>Участник</th></tr>
     </thead>
     <tbody></tbody>
   </table>
 </div>
 
 <script>
+const APPS_SCRIPT_URL='ВСТАВЬТЕ_СЮДА_ВАШ_URL_WEB_APP';
+
 let editIndex = null;
 
-function getRecords() { return JSON.parse(localStorage.getItem('records')||'[]'); }
-function setRecords(records) { localStorage.setItem('records',JSON.stringify(records)); }
-function getLastUploadedIndex(){ return parseInt(localStorage.getItem('lastUploadedIndex')||'-1'); }
-function setLastUploadedIndex(idx){ localStorage.setItem('lastUploadedIndex',idx); }
+// helpers
+function getRecords(){ return JSON.parse(localStorage.getItem('records')||'[]'); }
+function setRecords(arr){ localStorage.setItem('records',JSON.stringify(arr)); }
+function escapeHtml(s){ return s?String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;') : ''; }
+function escapeCsv(s){ return s==null?'':String(s).replace(/"/g,'""'); }
 
-function escapeHtml(s){ return s?s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'):""; }
-function escapeCsv(s){ return s?s.replace(/"/g,'""'):""; }
-
-function refreshAll() { renderMainTable(); renderArchiveTableForSelectedDate(); }
-
-function saveRecord() {
-  const eventName=document.getElementById('eventName').value.trim();
+// CRUD
+function saveRecord(){
+  const name=document.getElementById('eventName').value.trim();
   const participant=document.getElementById('participant').value.trim();
-  if(!eventName||!participant){alert("Заполните обязательные поля");return;}
-  const records=getRecords();
-  records.push({
-    date:new Date().toISOString().split('T')[0],
-    time:new Date().toLocaleTimeString(),
-    eventName,
-    targetAudience:document.getElementById('targetAudience').value.trim(),
+  if(!name||!participant){ alert('Заполните название и участника'); return; }
+  const record={date:new Date().toISOString().split('T')[0],time:new Date().toLocaleTimeString(),
+    eventName:name,targetAudience:document.getElementById('targetAudience').value.trim(),
     growthZones:document.getElementById('growthZones').value.trim(),
-    comment:document.getElementById('comment').value.trim(),
-    participant
-  });
-  setRecords(records);
-  clearForm();
-  showSaveMode();
-  refreshAll();
+    comment:document.getElementById('comment').value.trim(),participant
+  };
+  const records=getRecords(); records.push(record); setRecords(records);
+  clearForm(); refreshAll(); showSaveMode();
 }
+function updateRecord(){ if(editIndex===null) return; const records=getRecords(); if(!records[editIndex]) return; 
+records[editIndex].eventName=document.getElementById('eventName').value.trim();
+records[editIndex].targetAudience=document.getElementById('targetAudience').value.trim();
+records[editIndex].growthZones=document.getElementById('growthZones').value.trim();
+records[editIndex].comment=document.getElementById('comment').value.trim();
+records[editIndex].participant=document.getElementById('participant').value.trim();
+setRecords(records); clearForm(); refreshAll(); showSaveMode(); }
+function clearForm(){ document.getElementById('eventName').value=''; document.getElementById('targetAudience').value=''; document.getElementById('growthZones').value=''; document.getElementById('comment').value=''; document.getElementById('participant').value=''; editIndex=null; }
 
-function updateRecord() {
-  if(editIndex===null) return;
-  const records=getRecords();
-  const r=records[editIndex];
-  r.eventName=document.getElementById('eventName').value.trim();
-  r.targetAudience=document.getElementById('targetAudience').value.trim();
-  r.growthZones=document.getElementById('growthZones').value.trim();
-  r.comment=document.getElementById('comment').value.trim();
-  r.participant=document.getElementById('participant').value.trim();
-  setRecords(records);
-  clearForm();
-  showSaveMode();
-  refreshAll();
-}
-
-function clearForm(){ ["eventName","targetAudience","growthZones","comment","participant"].forEach(id=>document.getElementById(id).value=""); }
+// UI
 function showSaveMode(){ document.getElementById('saveBtn').classList.remove('hidden'); document.getElementById('updateBtn').classList.add('hidden'); document.getElementById('cancelBtn').classList.add('hidden'); editIndex=null; }
 function showEditMode(){ document.getElementById('saveBtn').classList.add('hidden'); document.getElementById('updateBtn').classList.remove('hidden'); document.getElementById('cancelBtn').classList.remove('hidden'); }
 
-function rowHtml(r,idx){ return `<tr>
+// Table rendering
+function refreshAll(){ renderMainTable(); updateArchiveDate(); renderArchiveTable(); }
+function renderMainTable(){ const records=getRecords(); const body=document.querySelector('#mainTable tbody'); body.innerHTML=''; if(!records.length){ body.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>'; return; } records.forEach((r,i)=>{ body.innerHTML+=`<tr>
 <td>${escapeHtml(r.eventName)}</td>
 <td>${escapeHtml(r.targetAudience||'')}</td>
 <td>${escapeHtml(r.growthZones||'')}</td>
 <td>${escapeHtml(r.comment||'')}</td>
 <td>${escapeHtml(r.participant||'')}</td>
 <td>
-<button class="small" onclick="editRecord(${idx})">Редактировать</button>
-<button class="small danger" onclick="deleteRecord(${idx})">Удалить</button>
+<button class="small" onclick="editRecord(${i})">Редактировать</button>
+<button class="small danger" onclick="deleteRecord(${i})">Удалить</button>
 </td>
-</tr>`; }
+</tr>`});}
+function editRecord(i){ const r=getRecords()[i]; document.getElementById('eventName').value=r.eventName; document.getElementById('targetAudience').value=r.targetAudience||''; document.getElementById('growthZones').value=r.growthZones||''; document.getElementById('comment').value=r.comment||''; document.getElementById('participant').value=r.participant||''; editIndex=i; showEditMode(); }
+function deleteRecord(i){ if(!confirm('Удалить запись?')) return; const records=getRecords(); records.splice(i,1); setRecords(records); clearForm(); showSaveMode(); refreshAll(); }
 
-function renderMainTable(){
-  const records=getRecords();
-  const mainBody=document.querySelector('#mainTable tbody');
-  const spoilerBody=document.querySelector('#spoilerTable tbody');
-  mainBody.innerHTML=''; spoilerBody.innerHTML='';
-  if(!records.length){ mainBody.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>'; document.getElementById('toggleSpoilerBtn').classList.add('hidden'); return; }
-  mainBody.innerHTML=rowHtml(records[records.length-1],records.length-1);
-  if(records.length>1){ document.getElementById('toggleSpoilerBtn').classList.remove('hidden'); for(let i=records.length-2;i>=0;i--) spoilerBody.innerHTML+=rowHtml(records[i],i); }
-}
-
-function editRecord(idx){ const r=getRecords()[idx]; document.getElementById('eventName').value=r.eventName; document.getElementById('targetAudience').value=r.targetAudience||''; document.getElementById('growthZones').value=r.growthZones||''; document.getElementById('comment').value=r.comment||''; document.getElementById('participant').value=r.participant||''; editIndex=idx; showEditMode(); }
-function deleteRecord(idx){ if(!confirm('Удалить запись?')) return; const records=getRecords(); records.splice(idx,1); setRecords(records); if(editIndex===idx) showSaveMode(); refreshAll(); }
-function toggleSpoiler(){ const table=document.getElementById('spoilerTable'); const btn=document.getElementById('toggleSpoilerBtn'); table.classList.toggle('hidden'); btn.textContent=table.classList.contains('hidden')?'Показать все записи':'Скрыть записи'; }
-
+// Archive
 const archiveInput=document.getElementById('archiveDate');
-function renderArchiveTableForSelectedDate(){
-  const records=getRecords(); const body=document.querySelector('#archiveTable tbody'); const date=archiveInput.value;
-  if(!date){body.innerHTML='<tr><td colspan="6" class="muted">Нет записей</td></tr>'; return;}
-  const filtered=records.filter(r=>r.date===date);
-  if(!filtered.length){body.innerHTML='<tr><td colspan="6" class="muted">Записей в этот день нет</td></tr>'; return;}
-  body.innerHTML=''; filtered.forEach(r=>{ body.innerHTML+=`<tr>
-<td>${escapeHtml(r.date)} ${escapeHtml(r.time||'')}</td>
+function updateArchiveDate(){ const records=getRecords(); const dates=[...new Set(records.map(r=>r.date))].sort(); archiveInput.value=dates[dates.length-1]||new Date().toISOString().split('T')[0]; renderArchiveTable(); }
+function renderArchiveTable(){ const records=getRecords(); const chosen=archiveInput.value; const body=document.querySelector('#archiveTable tbody'); body.innerHTML=''; if(!chosen){ body.innerHTML='<tr><td colspan="7" class="muted">Нет записей</td></tr>'; return; } const filtered=records.filter(r=>r.date===chosen); if(!filtered.length){ body.innerHTML='<tr><td colspan="7" class="muted">Нет записей в этот день</td></tr>'; return; } filtered.forEach(r=>{ body.innerHTML+=`<tr>
+<td>${escapeHtml(r.date)}</td>
+<td>${escapeHtml(r.time||'')}</td>
 <td>${escapeHtml(r.eventName)}</td>
 <td>${escapeHtml(r.targetAudience||'')}</td>
 <td>${escapeHtml(r.growthZones||'')}</td>
 <td>${escapeHtml(r.comment||'')}</td>
 <td>${escapeHtml(r.participant||'')}</td>
-</tr>`; });
+</tr>`}); }
+function prevDate(){ const opt=archiveInput; if(opt.selectedIndex>0){ const dates=[...new Set(getRecords().map(r=>r.date))].sort(); let cur=dates.indexOf(opt.value); if(cur>0) opt.value=dates[cur-1]; renderArchiveTable();} }
+function nextDate(){ const opt=archiveInput; const dates=[...new Set(getRecords().map(r=>r.date))].sort(); let cur=dates.indexOf(opt.value); if(cur<dates.length-1) opt.value=dates[cur+1]; renderArchiveTable();}
+
+// Upload to Google Sheets
+function uploadSheets(){
+  const records=getRecords();
+  if(!records.length){ alert('Нет записей для выгрузки'); return; }
+  document.getElementById('status').textContent='Выгрузка...';
+  fetch(APPS_SCRIPT_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(records)
+  })
+  .then(res=>res.json())
+  .then(r=>{
+    if(r.status==='ok'){ document.getElementById('status').textContent='Выгрузка успешна!'; } 
+    else { document.getElementById('status').textContent='Ошибка: '+(r.message||''); }
+  })
+  .catch(err=>{
+    console.error(err);
+    document.getElementById('status').textContent='Ошибка при выгрузке: '+err.message;
+  });
 }
 
-function prevDate(){ const d=new Date(archiveInput.value); d.setDate(d.getDate()-1); archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
-function nextDate(){ const d=new Date(archiveInput.value); d.setDate(d.getDate()+1); archiveInput.value=d.toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
-
+// Event listeners
 document.getElementById('saveBtn').addEventListener('click',saveRecord);
 document.getElementById('updateBtn').addEventListener('click',updateRecord);
 document.getElementById('cancelBtn').addEventListener('click',()=>{clearForm();showSaveMode();});
-document.getElementById('toggleSpoilerBtn').addEventListener('click',toggleSpoiler);
-document.getElementById('prevDateBtn').addEventListener('click',prevDate);
-document.getElementById('nextDateBtn').addEventListener('click',nextDate);
-document.getElementById('downloadCSVBtn').addEventListener('click',()=>{
-  const records=getRecords(); if(!records.length){alert('Архив пуст!');return;}
-  let csv='Дата;Время;Название;ЦА;Зоны роста;Комментарий;Участник\n';
-  records.forEach(r=>csv+=`"${r.date}";"${r.time||''}";"${escapeCsv(r.eventName)}";"${escapeCsv(r.targetAudience||'')}";"${escapeCsv(r.growthZones||'')}";"${escapeCsv(r.comment||'')}";"${escapeCsv(r.participant||'')}"\n`);
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='архив.csv'; link.click();
-});
+archiveInput.addEventListener('change',renderArchiveTable);
+document.getElementById('uploadSheetsBtn').addEventListener('click',uploadSheets);
 
-// ===== Google Sheets upload =====
-document.getElementById('uploadSheetsBtn').addEventListener('click',()=>{
-  const records=getRecords(); const last=getLastUploadedIndex(); const newRecords=records.slice(last+1);
-  if(!newRecords.length){ alert('Нет новых записей для выгрузки'); return; }
-  const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwFOhuQO7hcdwdRCPBtVIomXbV0Ktl-nrr-mDdjiSkHslyhIauqLvkGwE3qVuM27Wa_/exec'; // Вставьте ваш URL Web App
-  fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(newRecords)})
-  .then(res=>res.json())
-  .then(()=>{ alert(`${newRecords.length} запись(ей) успешно выгружено в Google Sheets!`); setLastUploadedIndex(records.length-1); })
-  .catch(err=>{ console.error(err); alert('Ошибка при выгрузке'); });
-});
-
-// Инициализация календаря
-function initArchiveDate(){ const records=getRecords(); if(!records.length) return; const dates=[...new Set(records.map(r=>r.date))].sort(); archiveInput.value=dates[dates.length-1]||new Date().toISOString().split('T')[0]; renderArchiveTableForSelectedDate(); }
-
-window.addEventListener('load',()=>{refreshAll();showSaveMode();initArchiveDate();});
+// Init
+window.addEventListener('load',()=>{refreshAll(); showSaveMode();});
 </script>
 
 </body>
 </html>
+
 
 
 
