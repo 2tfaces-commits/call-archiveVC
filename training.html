@@ -52,22 +52,20 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
       <tbody></tbody>
     </table>
 
-    <div class="spoiler">
-      <button id="toggleSpoilerBtn">Показать все записи</button>
-      <table id="spoilerTable" class="hidden">
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>ЦА</th>
-            <th>Зоны роста</th>
-            <th>Комментарий</th>
-            <th>Участник</th>
-            <th>Действие</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <button id="toggleSpoilerBtn">Показать все записи</button>
+    <table id="spoilerTable" class="hidden">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>ЦА</th>
+          <th>Зоны роста</th>
+          <th>Комментарий</th>
+          <th>Участник</th>
+          <th>Действие</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 </div>
 
@@ -99,6 +97,7 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 <script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-firestore-compat.js"></script>
 
 <script>
+// Настройки Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
   authDomain: "analysis-2b010.firebaseapp.com",
@@ -134,12 +133,10 @@ function saveData(){
     comment: document.getElementById("comment").value.trim(),
     participant: document.getElementById("participant").value.trim()
   };
-
   if(!record.eventName || !record.participant){
     alert("Заполните обязательные поля!");
     return;
   }
-
   if(editId){
     db.collection("records").doc(editId).set(record).then(clearForm).catch(console.error);
   } else {
@@ -168,7 +165,6 @@ function renderTables(records){
   const spoilerTableBody = document.querySelector("#spoilerTable tbody");
   mainTableBody.innerHTML = "";
   spoilerTableBody.innerHTML = "";
-
   if(records.length){
     const last = records[records.length-1];
     mainTableBody.innerHTML = rowHTML(last);
@@ -176,7 +172,6 @@ function renderTables(records){
       spoilerTableBody.innerHTML += rowHTML(records[i]);
     }
   }
-
   renderArchive(records, document.getElementById("archiveDate").value);
 }
 
@@ -196,14 +191,14 @@ function renderArchive(records, date){
   });
 }
 
-// Подписка на Firestore (реальное время)
+// Подписка на Firestore
 db.collection("records").orderBy("date").onSnapshot(snapshot=>{
   const records = [];
   snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
   renderTables(records);
 });
 
-// Делегирование кнопок редактирования и удаления
+// Делегирование редактирования и удаления
 document.addEventListener("click", (e)=>{
   if(e.target.matches(".edit-btn")){
     const id = e.target.dataset.id;
@@ -270,7 +265,6 @@ document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
 </script>
 </body>
 </html>
-
 
 
 
