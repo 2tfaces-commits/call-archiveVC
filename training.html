@@ -101,16 +101,14 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 <script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-firestore-compat.js"></script>
 
 <script>
-  // 🔹 Вставьте свои настройки Firebase
   const firebaseConfig = {
-   apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
-   authDomain: "analysis-2b010.firebaseapp.com",
-   databaseURL: "https://analysis-2b010-default-rtdb.firebaseio.com",
-   projectId: "analysis-2b010",
-   storageBucket: "analysis-2b010.firebasestorage.app",
-   messagingSenderId: "700504174166",
-   appId: "1:700504174166:web:4bc79f44bbc6a2a0b015f7",
-   measurementId: "G-E4HZVPHWZC"
+    apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
+    authDomain: "analysis-2b010.firebaseapp.com",
+    projectId: "analysis-2b010",
+    storageBucket: "analysis-2b010.appspot.com",
+    messagingSenderId: "700504174166",
+    appId: "1:700504174166:web:4bc79f44bbc6a2a0b015f7",
+    measurementId: "G-E4HZVPHWZC"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
@@ -132,7 +130,6 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     const growthZones = document.getElementById("growthZones").value.trim();
     const comment = document.getElementById("comment").value.trim();
     const participant = document.getElementById("participant").value.trim();
-
     if (!eventName || !participant) { alert("Заполните обязательные поля!"); return; }
 
     const record = {
@@ -171,14 +168,12 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     if(records.length){
       const last = records[records.length-1];
       mainTableBody.innerHTML = rowHTML(last);
-
       for(let i=records.length-2;i>=0;i--){
         spoilerTableBody.innerHTML += rowHTML(records[i]);
       }
     }
 
-    const archiveDate = document.getElementById("archiveDate").value;
-    renderArchive(records, archiveDate);
+    renderArchive(records, document.getElementById("archiveDate").value);
   }
 
   function renderArchive(records, date){
@@ -196,16 +191,12 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     });
   }
 
-  // 🔹 Подписка на изменения Firestore (реальное обновление)
   db.collection("records").orderBy("date").onSnapshot(snapshot=>{
     const records = [];
-    snapshot.forEach(doc=>{
-      records.push({...doc.data(), id: doc.id});
-    });
+    snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
     renderTables(records);
   });
 
-  // Делегирование кнопок редактирования и удаления
   document.addEventListener("click",(e)=>{
     if(e.target.matches(".edit-btn")){
       const id = e.target.dataset.id;
@@ -225,28 +216,21 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     }
   });
 
-  // Кнопки управления
   document.getElementById("saveBtn").addEventListener("click", saveData);
   document.getElementById("toggleSpoilerBtn").addEventListener("click",()=>{
     document.getElementById("spoilerTable").classList.toggle("hidden");
   });
 
-  // Архив
   const archiveInput = document.getElementById("archiveDate");
   archiveInput.value = new Date().toISOString().split("T")[0];
-  archiveInput.addEventListener("change", () => fetchArchive());
-
+  archiveInput.addEventListener("change", fetchArchive);
   document.getElementById("prevDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value);
-    d.setDate(d.getDate()-1);
-    archiveInput.value = d.toISOString().split("T")[0];
-    fetchArchive();
+    const d = new Date(archiveInput.value); d.setDate(d.getDate()-1);
+    archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
   });
   document.getElementById("nextDateBtn").addEventListener("click", ()=>{
-    const d = new Date(archiveInput.value);
-    d.setDate(d.getDate()+1);
-    archiveInput.value = d.toISOString().split("T")[0];
-    fetchArchive();
+    const d = new Date(archiveInput.value); d.setDate(d.getDate()+1);
+    archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
   });
 
   function fetchArchive(){
@@ -257,17 +241,14 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     });
   }
 
-  // CSV
-  function downloadCSV(){
+  document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
     db.collection("records").orderBy("date").get().then(snapshot=>{
       if(snapshot.empty){ alert("Архив пуст!"); return; }
-
       let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
       snapshot.forEach(doc=>{
         const r = doc.data();
         csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
       });
-
       const BOM = "\uFEFF";
       const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
       const link = document.createElement("a");
@@ -275,12 +256,10 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
       link.download = "archive.csv";
       link.click();
     });
-  }
-  document.getElementById("downloadCSVBtn").addEventListener("click", downloadCSV);
+  });
 </script>
 </body>
 </html>
-
 
 
 
