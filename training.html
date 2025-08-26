@@ -11,10 +11,12 @@ th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
 th { background: #eaeaea; }
 input, textarea { width: 100%; padding: 6px; margin: 4px 0; }
 button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
-.container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:20px; }
+.container { background:#fff; padding:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 .grid { display: flex; gap: 20px; }
 .form-section { flex: 1; }
 .table-section { flex: 2; }
+.spoiler { margin-top: 10px; }
+.spoiler button { margin-bottom: 8px; }
 .hidden { display: none; }
 </style>
 </head>
@@ -52,20 +54,22 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
       <tbody></tbody>
     </table>
 
-    <button id="toggleSpoilerBtn">Показать все записи</button>
-    <table id="spoilerTable" class="hidden">
-      <thead>
-        <tr>
-          <th>Название</th>
-          <th>ЦА</th>
-          <th>Зоны роста</th>
-          <th>Комментарий</th>
-          <th>Участник</th>
-          <th>Действие</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="spoiler">
+      <button id="toggleSpoilerBtn">Показать все записи</button>
+      <table id="spoilerTable" class="hidden">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>ЦА</th>
+            <th>Зоны роста</th>
+            <th>Комментарий</th>
+            <th>Участник</th>
+            <th>Действие</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -97,7 +101,6 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 <script src="https://www.gstatic.com/firebasejs/9.30.0/firebase-firestore-compat.js"></script>
 
 <script>
-// Настройки Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
   authDomain: "analysis-2b010.firebaseapp.com",
@@ -112,7 +115,6 @@ const db = firebase.firestore();
 
 let editId = null;
 
-// Очистка формы
 function clearForm(){
   document.getElementById("eventName").value = "";
   document.getElementById("targetAudience").value = "";
@@ -122,21 +124,21 @@ function clearForm(){
   editId = null;
 }
 
-// Сохранение записи
 function saveData(){
+  const eventName = document.getElementById("eventName").value.trim();
+  const targetAudience = document.getElementById("targetAudience").value.trim();
+  const growthZones = document.getElementById("growthZones").value.trim();
+  const comment = document.getElementById("comment").value.trim();
+  const participant = document.getElementById("participant").value.trim();
+  if(!eventName || !participant){ alert("Заполните обязательные поля!"); return; }
+
   const record = {
+    eventName, targetAudience, growthZones, comment, participant,
     date: new Date().toISOString().split("T")[0],
     time: new Date().toLocaleTimeString(),
-    eventName: document.getElementById("eventName").value.trim(),
-    targetAudience: document.getElementById("targetAudience").value.trim(),
-    growthZones: document.getElementById("growthZones").value.trim(),
-    comment: document.getElementById("comment").value.trim(),
-    participant: document.getElementById("participant").value.trim()
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
   };
-  if(!record.eventName || !record.participant){
-    alert("Заполните обязательные поля!");
-    return;
-  }
+
   if(editId){
     db.collection("records").doc(editId).set(record).then(clearForm).catch(console.error);
   } else {
@@ -144,7 +146,6 @@ function saveData(){
   }
 }
 
-// Формирование строки таблицы
 function rowHTML(r){
   return `<tr>
     <td>${r.eventName}</td>
@@ -159,24 +160,22 @@ function rowHTML(r){
   </tr>`;
 }
 
-// Рендер таблиц
 function renderTables(records){
-  const mainTableBody = document.querySelector("#mainTable tbody");
-  const spoilerTableBody = document.querySelector("#spoilerTable tbody");
-  mainTableBody.innerHTML = "";
-  spoilerTableBody.innerHTML = "";
+  const mainBody = document.querySelector("#mainTable tbody");
+  const spoilerBody = document.querySelector("#spoilerTable tbody");
+  mainBody.innerHTML = "";
+  spoilerBody.innerHTML = "";
+
   if(records.length){
-    const last = records[records.length-1];
-    mainTableBody.innerHTML = rowHTML(last);
+    mainBody.innerHTML = rowHTML(records[records.length-1]);
     for(let i=records.length-2;i>=0;i--){
-      spoilerTableBody.innerHTML += rowHTML(records[i]);
+      spoilerBody.innerHTML += rowHTML(records[i]);
     }
   }
   renderArchive(records, document.getElementById("archiveDate").value);
 }
 
-// Рендер архива по дате
-function renderArchive(records, date){
+function renderArchive(records,date){
   const tbody = document.querySelector("#archiveTable tbody");
   tbody.innerHTML = "";
   records.filter(r=>r.date===date).forEach(r=>{
@@ -192,24 +191,24 @@ function renderArchive(records, date){
 }
 
 // Подписка на Firestore
-db.collection("records").orderBy("date").onSnapshot(snapshot=>{
+db.collection("records").orderBy("timestamp").onSnapshot(snapshot=>{
   const records = [];
-  snapshot.forEach(doc=>records.push({...doc.data(), id: doc.id}));
+  snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
   renderTables(records);
 });
 
-// Делегирование редактирования и удаления
-document.addEventListener("click", (e)=>{
+// Редактирование и удаление
+document.addEventListener("click",e=>{
   if(e.target.matches(".edit-btn")){
     const id = e.target.dataset.id;
     db.collection("records").doc(id).get().then(doc=>{
       const r = doc.data();
-      document.getElementById("eventName").value = r.eventName;
-      document.getElementById("targetAudience").value = r.targetAudience;
-      document.getElementById("growthZones").value = r.growthZones;
-      document.getElementById("comment").value = r.comment;
-      document.getElementById("participant").value = r.participant;
-      editId = id;
+      document.getElementById("eventName").value=r.eventName;
+      document.getElementById("targetAudience").value=r.targetAudience;
+      document.getElementById("growthZones").value=r.growthZones;
+      document.getElementById("comment").value=r.comment;
+      document.getElementById("participant").value=r.participant;
+      editId=id;
     });
   }
   if(e.target.matches(".delete-btn")){
@@ -219,50 +218,50 @@ document.addEventListener("click", (e)=>{
 });
 
 // Кнопки
-document.getElementById("saveBtn").addEventListener("click", saveData);
-document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=>{
+document.getElementById("saveBtn").addEventListener("click",saveData);
+document.getElementById("toggleSpoilerBtn").addEventListener("click",()=>{
   document.getElementById("spoilerTable").classList.toggle("hidden");
 });
 
 // Архив
 const archiveInput = document.getElementById("archiveDate");
 archiveInput.value = new Date().toISOString().split("T")[0];
-archiveInput.addEventListener("change", fetchArchive);
-document.getElementById("prevDateBtn").addEventListener("click", ()=>{
-  const d = new Date(archiveInput.value); d.setDate(d.getDate()-1);
-  archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
+archiveInput.addEventListener("change",fetchArchive);
+document.getElementById("prevDateBtn").addEventListener("click",()=>{
+  const d=new Date(archiveInput.value);d.setDate(d.getDate()-1);
+  archiveInput.value=d.toISOString().split("T")[0];fetchArchive();
 });
-document.getElementById("nextDateBtn").addEventListener("click", ()=>{
-  const d = new Date(archiveInput.value); d.setDate(d.getDate()+1);
-  archiveInput.value = d.toISOString().split("T")[0]; fetchArchive();
+document.getElementById("nextDateBtn").addEventListener("click",()=>{
+  const d=new Date(archiveInput.value);d.setDate(d.getDate()+1);
+  archiveInput.value=d.toISOString().split("T")[0];fetchArchive();
 });
-
 function fetchArchive(){
-  db.collection("records").orderBy("date").get().then(snapshot=>{
-    const records = [];
-    snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
-    renderArchive(records, archiveInput.value);
+  db.collection("records").orderBy("timestamp").get().then(snapshot=>{
+    const records=[];
+    snapshot.forEach(doc=>records.push({...doc.data(),id:doc.id}));
+    renderArchive(records,archiveInput.value);
   });
 }
 
 // CSV
-document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
-  db.collection("records").orderBy("date").get().then(snapshot=>{
-    if(snapshot.empty){ alert("Архив пуст!"); return; }
-    let csv = "Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
+document.getElementById("downloadCSVBtn").addEventListener("click",()=>{
+  db.collection("records").orderBy("timestamp").get().then(snapshot=>{
+    if(snapshot.empty){alert("Архив пуст!");return;}
+    let csv="Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
     snapshot.forEach(doc=>{
-      const r = doc.data();
-      csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+      const r=doc.data();
+      csv+=`"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
     });
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "archive.csv";
+    const BOM="\uFEFF";
+    const blob=new Blob([BOM+csv],{type:"text/csv;charset=utf-8;"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download="archive.csv";
     link.click();
   });
 });
 </script>
+
 </body>
 </html>
 
