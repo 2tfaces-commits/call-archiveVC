@@ -303,7 +303,7 @@ document.getElementById('downloadCSVBtn').addEventListener('click',()=>{
 document.getElementById('uploadSheetsBtn').addEventListener('click',()=>{
   const records=getRecords();
   if(!records.length){alert('Нет записей для выгрузки'); return;}
-  const APPS_SCRIPT_URL='ВАШ_URL_APPS_SCRIPT';
+  const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbz3K7DLnpM11ytbrU7bjB2cDMaHSv6MM18qoayLoGIdEwSX-RlhPRJZ4ssCMNvVsi2x/exec';
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -329,6 +329,7 @@ showSaveMode();
 
 </body>
 </html>
+
 
 
 
