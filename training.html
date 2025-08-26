@@ -35,8 +35,8 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     <textarea id="comment"></textarea>
     <label>Участник:</label>
     <input type="text" id="participant">
-    <button id="saveBtn">Сохранить</button>
-    <button id="uploadToSheetsBtn">Выгрузить в Google Sheets</button>
+    <button type="button" id="saveBtn">Сохранить</button>
+    <button type="button" id="uploadToSheetsBtn">Выгрузить в Google Sheets</button>
   </div>
 
   <div class="container table-section">
@@ -56,7 +56,7 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
     </table>
 
     <div class="spoiler">
-      <button id="toggleSpoilerBtn">Показать все записи</button>
+      <button type="button" id="toggleSpoilerBtn">Показать все записи</button>
       <table id="spoilerTable" class="hidden">
         <thead>
           <tr>
@@ -78,9 +78,9 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
   <h2>Архив записей</h2>
   <label>Выберите дату:</label>
   <input type="date" id="archiveDate">
-  <button id="prevDateBtn">⬅ Предыдущая</button>
-  <button id="nextDateBtn">Следующая ➡</button>
-  <button id="downloadCSVBtn">📥 Скачать архив (Excel/CSV)</button>
+  <button type="button" id="prevDateBtn">⬅ Предыдущая</button>
+  <button type="button" id="nextDateBtn">Следующая ➡</button>
+  <button type="button" id="downloadCSVBtn">📥 Скачать архив (Excel/CSV)</button>
 
   <table id="archiveTable">
     <thead>
@@ -103,6 +103,7 @@ button { padding: 6px 12px; margin-top: 5px; cursor: pointer; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+
   // --- Firebase ---
   const firebaseConfig = {
     apiKey: "AIzaSyB5ljqThoa3rS8ZjJD-FpsYjmTeW6hCGV4",
@@ -117,6 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
   let editId = null;
+  const APPS_SCRIPT_URL = "ВАШ_URL_APPS_SCRIPT"; // вставьте URL вашего веб-приложения Google Apps Script
 
   // --- Функции ---
   function clearForm(){
@@ -151,8 +153,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <td>${r.comment}</td>
       <td>${r.participant}</td>
       <td>
-        <button class="edit-btn" data-id="${r.id}">Редактировать</button>
-        <button class="delete-btn" data-id="${r.id}">Удалить</button>
+        <button type="button" class="edit-btn" data-id="${r.id}">Редактировать</button>
+        <button type="button" class="delete-btn" data-id="${r.id}">Удалить</button>
       </td>
     </tr>`;
   }
@@ -186,41 +188,78 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- События ---
-  document.getElementById("saveBtn").addEventListener("click", saveData);
-  document.getElementById("toggleSpoilerBtn").addEventListener("click", ()=> {
+  // --- Кнопки ---
+  const saveBtn = document.getElementById("saveBtn");
+  const uploadBtn = document.getElementById("uploadToSheetsBtn");
+  const toggleBtn = document.getElementById("toggleSpoilerBtn");
+  const prevBtn = document.getElementById("prevDateBtn");
+  const nextBtn = document.getElementById("nextDateBtn");
+  const downloadBtn = document.getElementById("downloadCSVBtn");
+
+  saveBtn.addEventListener("click", saveData);
+
+  toggleBtn.addEventListener("click", () => {
     document.getElementById("spoilerTable").classList.toggle("hidden");
   });
 
   const archiveInput = document.getElementById("archiveDate");
   archiveInput.value = new Date().toISOString().split("T")[0];
   archiveInput.addEventListener("change", fetchArchive);
-  document.getElementById("prevDateBtn").addEventListener("click", ()=>{
-    const d=new Date(archiveInput.value); d.setDate(d.getDate()-1);
-    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
-  });
-  document.getElementById("nextDateBtn").addEventListener("click", ()=>{
-    const d=new Date(archiveInput.value); d.setDate(d.getDate()+1);
-    archiveInput.value=d.toISOString().split("T")[0]; fetchArchive();
+
+  prevBtn.addEventListener("click", () => {
+    const d = new Date(archiveInput.value); 
+    d.setDate(d.getDate() - 1);
+    archiveInput.value = d.toISOString().split("T")[0];
+    fetchArchive();
   });
 
-  document.getElementById("downloadCSVBtn").addEventListener("click", ()=>{
-    db.collection("records").orderBy("timestamp").get().then(snapshot=>{
-      if(snapshot.empty){alert("Архив пуст!");return;}
+  nextBtn.addEventListener("click", () => {
+    const d = new Date(archiveInput.value); 
+    d.setDate(d.getDate() + 1);
+    archiveInput.value = d.toISOString().split("T")[0];
+    fetchArchive();
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    db.collection("records").orderBy("timestamp").get().then(snapshot => {
+      if(snapshot.empty){ alert("Архив пуст!"); return; }
       let csv="Дата;Название;ЦА;Зоны роста;Комментарий;Участник\n";
-      snapshot.forEach(doc=>{
-        const r=doc.data();
-        csv+=`"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
+      snapshot.forEach(doc => {
+        const r = doc.data();
+        csv += `"${r.date} ${r.time}";"${r.eventName}";"${r.targetAudience}";"${r.growthZones}";"${r.comment}";"${r.participant}"\n`;
       });
-      const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
-      const link=document.createElement("a");
-      link.href=URL.createObjectURL(blob);
-      link.download="archive.csv";
+      const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "archive.csv";
       link.click();
     });
   });
 
-  // --- Подписка на Firestore ---
+  uploadBtn.addEventListener("click", () => {
+    const rows = [];
+    document.querySelectorAll("#mainTable tbody tr, #spoilerTable tbody tr").forEach(tr=>{
+      const tds = tr.querySelectorAll("td");
+      rows.push({
+        eventName: tds[0].innerText,
+        targetAudience: tds[1].innerText,
+        growthZones: tds[2].innerText,
+        comment: tds[3].innerText,
+        participant: tds[4].innerText
+      });
+    });
+
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(rows)
+    })
+    .then(res => res.json())
+    .then(() => alert("Данные успешно выгружены в Google Sheets!"))
+    .catch(err => console.error(err));
+  });
+
+  // --- Firestore подписка ---
   db.collection("records").orderBy("timestamp").onSnapshot(snapshot=>{
     const records = [];
     snapshot.forEach(doc=>records.push({...doc.data(), id:doc.id}));
@@ -245,40 +284,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // --- Выгрузка в Google Sheets ---
-  const APPS_SCRIPT_URL = "https://script.google.com/u/0/home/projects/1R2DoHx3Kximf674Hh7et9R0RrL9m3OugJHRGEjHZkIh96kbI_xcDWU37/edit"; // вставьте URL вашего веб-приложения Google Apps Script
-  document.getElementById("uploadToSheetsBtn").addEventListener("click", ()=>{
-    const rows = [];
-    document.querySelectorAll("#mainTable tbody tr, #spoilerTable tbody tr").forEach(tr=>{
-      const tds = tr.querySelectorAll("td");
-      rows.push({
-        eventName: tds[0].innerText,
-        targetAudience: tds[1].innerText,
-        growthZones: tds[2].innerText,
-        comment: tds[3].innerText,
-        participant: tds[4].innerText
-      });
-    });
-
-    fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(rows)
-    })
-    .then(res => res.json())
-    .then(data => alert("Данные успешно выгружены в Google Sheets!"))
-    .catch(err => console.error(err));
-  });
-
 });
 </script>
 
 </body>
 </html>
-
-
-
-
 
 
 
